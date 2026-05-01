@@ -37,6 +37,8 @@ STATS_FEED = "https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
 BASE_INDEX = {"1B": 0, "2B": 1, "3B": 2}
 DEFAULT_FAILED_CHALLENGE_RUN_COST = 0.226
 RUNS_PER_WIN = 10.0
+BALL_RADIUS_FT = 1.45 / 12.0
+MIN_MISSED_EXPECTED_XWPA = 0.0005
 
 
 def mkdirs() -> None:
@@ -231,6 +233,8 @@ class PitchState:
     fielding_team_id: int
     home_team_id: int
     away_team_id: int
+    home_score: int
+    away_score: int
     balls: int
     strikes: int
     outs: int
@@ -378,6 +382,8 @@ def replay_game(feed: dict[str, Any], model: RunModel | None = None) -> dict[str
     outs = 0
     balls = 0
     strikes = 0
+    home_score = 0
+    away_score = 0
 
     def finalize_half() -> None:
         if model is None or half_key is None:
@@ -422,6 +428,8 @@ def replay_game(feed: dict[str, Any], model: RunModel | None = None) -> dict[str
                     fielding_team_id=fielding_team_id,
                     home_team_id=home_team_id,
                     away_team_id=away_team_id,
+                    home_score=home_score,
+                    away_score=away_score,
                     balls=balls,
                     strikes=strikes,
                     outs=outs,
@@ -435,12 +443,20 @@ def replay_game(feed: dict[str, Any], model: RunModel | None = None) -> dict[str
             if idx in runner_moves:
                 bases, outs, runs_scored = apply_runner_moves(bases, outs, runner_moves[idx])
                 half_runs += runs_scored
+                if is_top:
+                    away_score += runs_scored
+                else:
+                    home_score += runs_scored
                 processed_move_indexes.add(idx)
 
         for idx, moves in runner_moves.items():
             if idx not in processed_move_indexes:
                 bases, outs, runs_scored = apply_runner_moves(bases, outs, moves)
                 half_runs += runs_scored
+                if is_top:
+                    away_score += runs_scored
+                else:
+                    home_score += runs_scored
 
     finalize_half()
     return challenge_states
@@ -534,6 +550,12 @@ def score_diff_for_team(row: dict[str, Any], challenge_team_id: int) -> int:
     return fld_score - bat_score
 
 
+def score_diff_for_state(state: PitchState, challenge_team_id: int) -> int:
+    if challenge_team_id == state.home_team_id:
+        return state.home_score - state.away_score
+    return state.away_score - state.home_score
+
+
 def wp_after_transition(
     model: RunModel,
     row: dict[str, Any],
@@ -623,8 +645,7 @@ def add_inventory_columns(rows: list[dict[str, Any]]) -> None:
     fail_counts: dict[tuple[int, int, str], int] = defaultdict(int)
     for row in rows:
         inning = int(row["inning"])
-        bucket = "reg" if inning <= 9 else f"extra-{inning}"
-        limit = 2 if bucket == "reg" else 1
+        bucket, limit = challenge_inventory_bucket(inning)
         key = (int(row["game_pk"]), int(row["challenge_team_id"]), bucket)
         before = fail_counts[key]
         failed = int(row.get("is_challengeABS_overturned", 0)) == 0
@@ -635,6 +656,231 @@ def add_inventory_columns(rows: list[dict[str, Any]]) -> None:
         row["remaining_challenge_losses_before"] = max(0, limit - before)
         row["exhausted_after"] = failed and after >= limit
         fail_counts[key] = after
+
+
+def challenge_inventory_bucket(inning: int) -> tuple[str, int]:
+    bucket = "reg" if inning <= 9 else f"extra-{inning}"
+    return bucket, 2 if bucket == "reg" else 1
+
+
+def team_meta_from_feed(feed: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    teams = feed.get("gameData", {}).get("teams", {})
+    output = {}
+    for side in ("home", "away"):
+        team = teams.get(side, {})
+        if "id" not in team:
+            continue
+        output[int(team["id"])] = {
+            "id": int(team["id"]),
+            "abbr": team.get("abbreviation") or team.get("fileCode", "").upper(),
+            "name": team.get("name") or team.get("teamName") or team.get("abbreviation") or str(team["id"]),
+        }
+    return output
+
+
+def player_name(person: dict[str, Any] | None) -> str:
+    if not person:
+        return ""
+    return str(person.get("fullName") or person.get("nameFirstLast") or person.get("boxscoreName") or "")
+
+
+def strike_zone_miss(call_is_strike: bool, pitch_data: dict[str, Any]) -> tuple[bool, float, float, float, float, float]:
+    coordinates = pitch_data.get("coordinates") or {}
+    if coordinates.get("pX") in (None, "") or coordinates.get("pZ") in (None, ""):
+        return False, 0.0, 0.0, 0.0, 0.0, 0.0
+    px = float_or_zero(coordinates.get("pX"))
+    pz = float_or_zero(coordinates.get("pZ"))
+    top = float_or_zero(pitch_data.get("strikeZoneTop"))
+    bottom = float_or_zero(pitch_data.get("strikeZoneBottom"))
+    width_inches = float_or_zero(pitch_data.get("strikeZoneWidth")) or 17.0
+    if not top or not bottom:
+        return False, 0.0, px, pz, bottom, top
+
+    half_width = (width_inches / 2.0) / 12.0 + BALL_RADIUS_FT
+    left = -half_width
+    right = half_width
+    zone_bottom = bottom - BALL_RADIUS_FT
+    zone_top = top + BALL_RADIUS_FT
+    outside = max(left - px, px - right, zone_bottom - pz, pz - zone_top, 0.0)
+    inside = min(px - left, right - px, pz - zone_bottom, zone_top - pz)
+    is_inside = inside >= 0
+    if call_is_strike:
+        return outside > 0, outside, px, pz, bottom, top
+    return is_inside, max(inside, 0.0), px, pz, bottom, top
+
+
+def overturn_probability_from_distance(distance_ft: float) -> float:
+    inches = max(0.0, distance_ft * 12.0)
+    return 1.0 / (1.0 + math.exp(-((inches - 0.75) / 0.75)))
+
+
+def build_missed_opportunities(
+    game_pks: list[int],
+    evaluated_challenges: list[dict[str, Any]],
+    model: RunModel,
+    force: bool = False,
+) -> list[dict[str, Any]]:
+    challenge_by_pitch: dict[tuple[int, str], dict[str, Any]] = {}
+    for row in evaluated_challenges:
+        challenge_by_pitch[(int(row["game_pk"]), str(row["play_id"]))] = row
+
+    fail_counts: dict[tuple[int, int, str], int] = defaultdict(int)
+    updated_challenges: set[tuple[int, str]] = set()
+    opportunities: list[dict[str, Any]] = []
+
+    for game_pk in game_pks:
+        feed = fetch_game_feed(game_pk, force)
+        states = replay_game(feed, None)
+        teams = team_meta_from_feed(feed)
+        official_date = feed.get("gameData", {}).get("datetime", {}).get("officialDate", "")
+
+        for play in feed.get("liveData", {}).get("plays", {}).get("allPlays", []):
+            matchup = play.get("matchup", {})
+            batter = matchup.get("batter") or {}
+            pitcher = matchup.get("pitcher") or {}
+            about = play.get("about", {})
+            for event in sorted(play.get("playEvents", []), key=lambda e: int(e.get("index", -1))):
+                if not event.get("isPitch") or not event.get("playId"):
+                    continue
+                play_id = str(event["playId"])
+                state = states.get(play_id)
+                if state is None:
+                    continue
+
+                challenge_key = (game_pk, play_id)
+                actual_challenge = challenge_by_pitch.get(challenge_key)
+                if actual_challenge is None:
+                    maybe = missed_opportunity_for_pitch(
+                        feed=feed,
+                        event=event,
+                        state=state,
+                        matchup=matchup,
+                        about=about,
+                        teams=teams,
+                        official_date=official_date,
+                        fail_counts=fail_counts,
+                        model=model,
+                        batter=batter,
+                        pitcher=pitcher,
+                    )
+                    if maybe is not None:
+                        opportunities.append(maybe)
+
+                if actual_challenge is not None and challenge_key not in updated_challenges:
+                    bucket, limit = challenge_inventory_bucket(int(actual_challenge["inning"]))
+                    key = (game_pk, int(actual_challenge["challenge_team_id"]), bucket)
+                    if int(actual_challenge.get("is_challengeABS_overturned", 0)) == 0:
+                        fail_counts[key] = min(limit, fail_counts[key] + 1)
+                    updated_challenges.add(challenge_key)
+
+    opportunities.sort(key=lambda row: row["missed_expected_xwpa"], reverse=True)
+    return opportunities
+
+
+def missed_opportunity_for_pitch(
+    feed: dict[str, Any],
+    event: dict[str, Any],
+    state: PitchState,
+    matchup: dict[str, Any],
+    about: dict[str, Any],
+    teams: dict[int, dict[str, Any]],
+    official_date: str,
+    fail_counts: dict[tuple[int, int, str], int],
+    model: RunModel,
+    batter: dict[str, Any],
+    pitcher: dict[str, Any],
+) -> dict[str, Any] | None:
+    call = (event.get("details") or {}).get("call") or {}
+    call_code = call.get("code")
+    if call_code not in {"B", "C"}:
+        return None
+    call_is_strike = call_code == "C"
+    pitch_data = event.get("pitchData") or {}
+    is_miss, distance_ft, px, pz, sz_bot, sz_top = strike_zone_miss(call_is_strike, pitch_data)
+    if not is_miss or distance_ft <= 0:
+        return None
+
+    challenge_team_id = state.batting_team_id if call_is_strike else state.fielding_team_id
+    side = "batting" if call_is_strike else "fielding"
+    bucket, limit = challenge_inventory_bucket(state.inning)
+    inv_key = (state.game_pk, challenge_team_id, bucket)
+    losses_before = fail_counts[inv_key]
+    remaining = max(0, limit - losses_before)
+    if remaining <= 0:
+        return None
+
+    row = {
+        "challenge_team_id": challenge_team_id,
+        "bat_team_id": state.batting_team_id,
+        "fld_team_id": state.fielding_team_id,
+    }
+    score_diff = score_diff_for_state(state, challenge_team_id)
+    original_transition = apply_called_pitch(state.bases, state.outs, state.balls, state.strikes, call_is_strike)
+    corrected_transition = apply_called_pitch(state.bases, state.outs, state.balls, state.strikes, not call_is_strike)
+    wp_original = wp_after_transition(model, row, state, original_transition, score_diff)
+    wp_corrected = wp_after_transition(model, row, state, corrected_transition, score_diff)
+    wpa_if_overturned = wp_corrected - wp_original
+    if wpa_if_overturned <= 0:
+        return None
+
+    overturn_probability = overturn_probability_from_distance(distance_ft)
+    option_cost = (DEFAULT_FAILED_CHALLENGE_RUN_COST / RUNS_PER_WIN) / remaining
+    expected_net = overturn_probability * wpa_if_overturned - (1.0 - overturn_probability) * option_cost
+    if expected_net <= MIN_MISSED_EXPECTED_XWPA:
+        return None
+
+    team = teams.get(challenge_team_id, {})
+    bat_team = teams.get(state.batting_team_id, {})
+    fld_team = teams.get(state.fielding_team_id, {})
+    role = "hitter" if side == "batting" else "pitcher"
+    opportunity_player = batter if role == "hitter" else pitcher
+
+    return {
+        "game_pk": state.game_pk,
+        "play_id": state.play_id,
+        "game_date": official_date,
+        "challenge_team_id": challenge_team_id,
+        "challenge_team_abbr": team.get("abbr", ""),
+        "challenge_team_name": team.get("name", ""),
+        "challenge_side": side,
+        "role": role,
+        "player_id": int_or_none(opportunity_player.get("id")) or "",
+        "player_name": player_name(opportunity_player),
+        "batter_id": int_or_none(batter.get("id")) or "",
+        "batter_name": player_name(batter),
+        "pitcher_id": int_or_none(pitcher.get("id")) or "",
+        "pitcher_name": player_name(pitcher),
+        "bat_team_abbr": bat_team.get("abbr", ""),
+        "fld_team_abbr": fld_team.get("abbr", ""),
+        "inning": state.inning,
+        "half": "Top" if state.is_top else "Bot",
+        "outs": state.outs,
+        "bases": state.bases,
+        "base_state": base_state_label(state.bases),
+        "balls": state.balls,
+        "strikes": state.strikes,
+        "original_call": "Strike" if call_is_strike else "Ball",
+        "corrected_call": "Ball" if call_is_strike else "Strike",
+        "plate_x": px,
+        "plate_z": pz,
+        "strike_zone_bottom": sz_bot,
+        "strike_zone_top": sz_top,
+        "zone_distance_ft": distance_ft,
+        "zone_distance_inches": distance_ft * 12.0,
+        "overturn_probability": overturn_probability,
+        "wp_original_call": wp_original,
+        "wp_corrected_call": wp_corrected,
+        "wpa_if_overturned": wpa_if_overturned,
+        "option_cost_if_failed": option_cost,
+        "missed_expected_xwpa": expected_net,
+        "decision_penalty_xwpa": -expected_net,
+        "challenge_losses_before": losses_before,
+        "remaining_challenge_losses_before": remaining,
+        "challenge_loss_limit": limit,
+        "pitch_start_time": state.start_time or event.get("startTime", ""),
+        "pitch_description": (event.get("details") or {}).get("description", ""),
+        "pitch_type": ((event.get("details") or {}).get("type") or {}).get("description", ""),
+    }
 
 
 def aggregate_rows(rows: list[dict[str, Any]], group_fields: list[str]) -> list[dict[str, Any]]:
@@ -675,6 +921,73 @@ def aggregate_rows(rows: list[dict[str, Any]], group_fields: list[str]) -> list[
 
     output.sort(key=lambda row: row["total_xwpa"], reverse=True)
     return output
+
+
+def aggregate_missed_rows(rows: list[dict[str, Any]], group_fields: list[str]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        key = tuple(row.get(field, "") for field in group_fields)
+        grouped[key].append(row)
+
+    output = []
+    for key, items in grouped.items():
+        count = len(items)
+        total = sum(float(item["missed_expected_xwpa"]) for item in items)
+        row = {field: key[idx] for idx, field in enumerate(group_fields)}
+        row.update(
+            {
+                "missed_opportunities": count,
+                "missed_xwpa": total,
+                "missed_xwpa_per_opportunity": total / count if count else 0.0,
+                "missed_wpa_if_overturned": sum(float(item["wpa_if_overturned"]) for item in items),
+                "avg_missed_overturn_probability": sum(float(item["overturn_probability"]) for item in items) / count if count else 0.0,
+                "avg_zone_distance_inches": sum(float(item["zone_distance_inches"]) for item in items) / count if count else 0.0,
+                "missed_batting_xwpa": sum(float(item["missed_expected_xwpa"]) for item in items if item.get("challenge_side") == "batting"),
+                "missed_fielding_xwpa": sum(float(item["missed_expected_xwpa"]) for item in items if item.get("challenge_side") == "fielding"),
+            }
+        )
+        output.append(row)
+
+    output.sort(key=lambda row: row["missed_xwpa"], reverse=True)
+    return output
+
+
+def add_missed_defaults(row: dict[str, Any]) -> None:
+    row.setdefault("missed_opportunities", 0)
+    row.setdefault("missed_xwpa", 0.0)
+    row.setdefault("missed_xwpa_per_opportunity", 0.0)
+    row.setdefault("missed_wpa_if_overturned", 0.0)
+    row.setdefault("avg_missed_overturn_probability", 0.0)
+    row.setdefault("avg_zone_distance_inches", 0.0)
+    row.setdefault("missed_batting_xwpa", 0.0)
+    row.setdefault("missed_fielding_xwpa", 0.0)
+
+
+def merge_team_missed_rows(team_rows: list[dict[str, Any]], missed_team_rows: list[dict[str, Any]]) -> None:
+    lookup = {int(row["challenge_team_id"]): row for row in missed_team_rows}
+    for row in team_rows:
+        missed = lookup.get(int(row["challenge_team_id"]), {})
+        row.update({k: v for k, v in missed.items() if k not in {"challenge_team_id", "challenge_team_abbr", "challenge_team_name"}})
+        add_missed_defaults(row)
+        row["decision_xwpa"] = float(row.get("total_xwpa", 0.0)) - float(row.get("missed_xwpa", 0.0))
+        row["decision_risk_adjusted_xwpa"] = float(row.get("risk_adjusted_xwpa", 0.0)) - float(row.get("missed_xwpa", 0.0))
+        row["decision_batting_xwpa"] = float(row.get("batting_xwpa", 0.0)) - float(row.get("missed_batting_xwpa", 0.0))
+        row["decision_fielding_xwpa"] = float(row.get("fielding_xwpa", 0.0)) - float(row.get("missed_fielding_xwpa", 0.0))
+        decision_denominator = int(row.get("attempts", 0)) + int(row.get("missed_opportunities", 0))
+        row["decision_xwpa_per_opportunity"] = row["decision_xwpa"] / decision_denominator if decision_denominator else 0.0
+
+
+def merge_player_missed_rows(player_rows: list[dict[str, Any]], missed_player_rows: list[dict[str, Any]]) -> None:
+    lookup = {
+        (str(row.get("role", "")), str(row.get("player_id", "")), str(row.get("challenge_team_abbr", ""))): row
+        for row in missed_player_rows
+    }
+    for row in player_rows:
+        key = (str(row.get("role", "")), str(row.get("player_id", "")), str(row.get("challenge_team_abbr", "")))
+        missed = lookup.get(key, {})
+        row.update({k: v for k, v in missed.items() if k not in {"role", "player_id", "player_name", "challenge_team_abbr"}})
+        add_missed_defaults(row)
+        row["decision_xwpa"] = float(row.get("total_xwpa", 0.0)) - float(row.get("missed_xwpa", 0.0))
 
 
 def build_player_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -852,6 +1165,26 @@ def challenge_phrase(row: dict[str, Any]) -> str:
     )
 
 
+def missed_phrase(row: dict[str, Any]) -> str:
+    if not row:
+        return "No missed challenge opportunities cleared the model threshold."
+    date_text = html.escape(str(row.get("game_date", ""))[:10])
+    team = html.escape(str(row.get("challenge_team_abbr", "")))
+    player = html.escape(str(row.get("player_name") or "the player"))
+    half = html.escape(str(row.get("half", "")))
+    inning = html.escape(str(row.get("inning", "")))
+    base_state = html.escape(str(row.get("base_state", "")))
+    count = f"{int(float_or_zero(row.get('balls')))}-{int(float_or_zero(row.get('strikes')))}"
+    original = html.escape(str(row.get("original_call", "")))
+    corrected = html.escape(str(row.get("corrected_call", "")))
+    distance = float(row.get("zone_distance_inches", 0.0))
+    return (
+        f"{date_text}: {player} ({team}) passed on a {half} {inning}, {count} {original.lower()} "
+        f"with {base_state}; the model had it {distance:.1f} inches over the inferred ABS edge "
+        f"and worth {signed_wpa_points(float(row.get('missed_expected_xwpa', 0.0)))} expected points if challenged to {corrected.lower()}."
+    )
+
+
 def normalize_adsense_client(value: str | None) -> str:
     cleaned = (value or "").strip()
     if not cleaned:
@@ -894,6 +1227,7 @@ def render_article_page(
     player_rows: list[dict[str, Any]],
     failed_against_rows: list[dict[str, Any]],
     challenge_rows: list[dict[str, Any]],
+    missed_rows: list[dict[str, Any]],
     year: int,
     end_date: str,
     adsense_client: str | None = None,
@@ -902,6 +1236,7 @@ def render_article_page(
     teams_by_total = sorted(team_rows, key=lambda row: float(row.get("total_xwpa", 0.0)), reverse=True)
     teams_by_risk = sorted(team_rows, key=lambda row: float(row.get("risk_adjusted_xwpa", 0.0)), reverse=True)
     challenges_by_swing = sorted(challenge_rows, key=lambda row: abs(float(row.get("total_xwpa", 0.0))), reverse=True)
+    missed_by_value = sorted(missed_rows, key=lambda row: float(row.get("missed_expected_xwpa", 0.0)), reverse=True)
     hitter_leaders = sorted(
         [row for row in player_rows if row.get("role") == "hitter"],
         key=lambda row: float(row.get("total_xwpa", 0.0)),
@@ -931,6 +1266,7 @@ def render_article_page(
     leader = teams_by_total[0] if teams_by_total else {}
     risk_leader = teams_by_risk[0] if teams_by_risk else {}
     top_swing = challenges_by_swing[0] if challenges_by_swing else {}
+    top_missed = missed_by_value[0] if missed_by_value else {}
     updated = date.today().isoformat()
 
     team_json = json.dumps([round_for_json(row) for row in team_rows], ensure_ascii=False)
@@ -954,6 +1290,30 @@ def render_article_page(
         for row in challenges_by_swing
     ]
     challenge_json = json.dumps(article_challenges, ensure_ascii=False)
+    article_missed = [
+        {
+            "game_date": row.get("game_date", ""),
+            "challenge_team_abbr": row.get("challenge_team_abbr", ""),
+            "challenge_team_name": row.get("challenge_team_name", ""),
+            "player_name": row.get("player_name", ""),
+            "role": row.get("role", ""),
+            "challenge_side": row.get("challenge_side", ""),
+            "half": row.get("half", ""),
+            "inning": row.get("inning", ""),
+            "base_state": row.get("base_state", ""),
+            "balls": int(float_or_zero(row.get("balls"))),
+            "strikes": int(float_or_zero(row.get("strikes"))),
+            "original_call": row.get("original_call", ""),
+            "corrected_call": row.get("corrected_call", ""),
+            "zone_distance_inches": round(float(row.get("zone_distance_inches", 0.0)), 2),
+            "overturn_probability": round(float(row.get("overturn_probability", 0.0)), 4),
+            "remaining_challenge_losses_before": int(float_or_zero(row.get("remaining_challenge_losses_before"))),
+            "wpa_if_overturned": round(float(row.get("wpa_if_overturned", 0.0)), 6),
+            "missed_expected_xwpa": round(float(row.get("missed_expected_xwpa", 0.0)), 6),
+        }
+        for row in missed_by_value
+    ]
+    missed_json = json.dumps(article_missed, ensure_ascii=False)
     adsense_banner = render_adsense_banner(adsense_client, adsense_slot)
 
     template = """<!doctype html>
@@ -1250,6 +1610,23 @@ def render_article_page(
     .suggestion:hover, .suggestion:focus { background: rgba(43,102,126,.12); outline: none; }
     .suggestion small { display: block; margin-top: 3px; color: var(--muted); font-weight: 700; }
     .board-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .toggle-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(17,24,39,.45);
+      background: rgba(255,249,235,.72);
+      padding: 9px 10px;
+      min-height: 38px;
+      font: 800 11px/1.1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+    }
+    .toggle-row input {
+      min-width: 0;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--green);
+    }
     .leaderboard-count {
       color: var(--muted);
       font: 800 11px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1431,6 +1808,7 @@ def render_article_page(
         <nav>
           <a href="dashboard.html">Data Dashboard</a>
           <a href="data/processed/team_abs_xwpa.csv">Team CSV</a>
+          <a href="data/processed/missed_challenge_opportunities.csv">Missed CSV</a>
           <a href="data/processed/player_failed_challenges_against.csv">Failed Against CSV</a>
         </nav>
       </div>
@@ -1504,6 +1882,7 @@ def render_article_page(
         </div>
         <div class="board-actions">
           <span class="leaderboard-count" id="teamBoardCount"></span>
+          <label class="toggle-row"><input id="teamIncludeMissed" type="checkbox">Include Missed</label>
           <button id="teamShowMore">Show 15 More</button>
           <button id="teamShowAll">Show All</button>
           <button id="teamReset">Reset</button>
@@ -1517,6 +1896,11 @@ def render_article_page(
       <p>The cleanest number here is direct xWPA. It gives full credit when ABS flips the call and zero direct credit when the call stands. That keeps the metric tied to the thing that actually changed on the field.</p>
 
       <p>The risk-adjusted column is a second lens, not a replacement. Failed challenges matter because teams can run out of them, so the script converts Savant's lost-challenge run value into wins using a 10-runs-per-win rule of thumb. That is a practical proxy for the hidden option value of keeping a challenge available. It is intentionally labeled as a proxy because MLB has not published an official challenge-inventory win model.</p>
+
+      <h2>The Challenge That Never Came</h2>
+      <p>There is now a third bucket: missed opportunities. These are not observed decisions, so they should be handled with more humility. The model scans every called ball and called strike in the MLB game feed, compares the pitch location to an inferred ABS rectangle, estimates the chance that a challenge would have flipped the call from the pitch's distance beyond the edge, then weighs that against the game's win-probability leverage and the team's remaining challenge inventory.</p>
+
+      <p>Through __END_DATE__, the model finds __MISSED_COUNT__ positive expected-value pitches that were not challenged, worth __MISSED_TOTAL_POINTS__ expected WPA points left on the table. The biggest is this one: __TOP_MISSED_PHRASE__</p>
     </article>
 
     <section class="viz">
@@ -1554,6 +1938,33 @@ def render_article_page(
     <section class="viz">
       <div class="viz-head">
         <div>
+          <div class="viz-kicker">Estimated Misses</div>
+          <h2>Positive-EV Challenges That Never Got Thrown</h2>
+        </div>
+        <div class="button-row" id="missedSideButtons">
+          <button class="active" data-missed-side="all">All</button>
+          <button data-missed-side="batting">Batting</button>
+          <button data-missed-side="fielding">Fielding</button>
+        </div>
+      </div>
+      <div class="board-tools">
+        <div class="typeahead">
+          <input id="missedSearch" placeholder="Search players or teams" autocomplete="off">
+          <div class="suggestions" id="missedSuggestions"></div>
+        </div>
+        <div class="board-actions">
+          <span class="leaderboard-count" id="missedCount"></span>
+          <button id="missedShowMore">Show 6 More</button>
+          <button id="missedShowAll">Show All</button>
+          <button id="missedReset">Reset</button>
+        </div>
+      </div>
+      <div class="swing-grid" id="missedGrid"></div>
+    </section>
+
+    <section class="viz">
+      <div class="viz-head">
+        <div>
           <div class="viz-kicker">Individual Boards</div>
           <h2>Who Creates, and Who Baits the Miss?</h2>
         </div>
@@ -1572,6 +1983,7 @@ def render_article_page(
         </div>
         <div class="board-actions">
           <span class="leaderboard-count" id="playerBoardCount"></span>
+          <label class="toggle-row"><input id="playerIncludeMissed" type="checkbox">Include Missed</label>
           <button id="playerShowMore">Show 12 More</button>
           <button id="playerShowAll">Show All</button>
           <button id="playerReset">Reset</button>
@@ -1616,6 +2028,7 @@ def render_article_page(
           <li>The win-probability model is trained from completed __YEAR__ regular-season game feeds through __END_DATE__.</li>
           <li>For each challenge, the model evaluates the original call and the ABS-corrected call from the challenging team's perspective.</li>
           <li>Risk-adjusted xWPA adds a failed-challenge inventory proxy based on Savant's lost-challenge run value, converted at 10 runs per win.</li>
+          <li>Missed opportunities are inferred from MLB game-feed pitch coordinates, a strike-zone rectangle expanded by a baseball radius, game leverage, modeled overturn probability from distance beyond the edge, and remaining challenge-loss inventory.</li>
         </ul>
       </div>
       <div>
@@ -1625,6 +2038,7 @@ def render_article_page(
           <li>Early-season run distributions are noisy, especially in rare count/base/out states.</li>
           <li>The inventory penalty is a proxy. A full version would model challenge availability, inning rules, and future challenge quality inside each game.</li>
           <li>Player credit follows the challenge side: hitter for batting challenges; catcher, pitcher, and fielding challenger for fielding challenges.</li>
+          <li>Missed-opportunity player credit is estimated only for hitters on missed batting challenges and pitchers on missed fielding challenges because the public game feed does not reliably expose the catcher on every historical pitch.</li>
         </ul>
         <p>Sources: <a href="https://www.mlb.com/news/how-to-know-who-is-good-at-using-abs-2026-mlb">MLB.com on ABS challenge skill</a>, <a href="https://baseballsavant.mlb.com/leaderboard/abs-challenges">Baseball Savant ABS leaderboard</a>, and MLB Stats API game feeds.</p>
       </div>
@@ -1641,6 +2055,7 @@ def render_article_page(
     const players = __PLAYER_JSON__;
     const failedAgainst = __FAILED_AGAINST_JSON__;
     const challenges = __CHALLENGE_JSON__;
+    const missed = __MISSED_JSON__;
 
     const logo = id => `https://www.mlbstatic.com/team-logos/${id}.svg`;
     const wpaPts = v => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}`;
@@ -1652,7 +2067,9 @@ def render_article_page(
     const boardState = {
       team: { metric: 'total_xwpa', limit: 15, query: '' },
       player: { mode: 'hitter', limit: 12, query: '' },
-      swing: { side: 'all', limit: 6, query: '' }
+      swing: { side: 'all', limit: 6, query: '' },
+      missed: { side: 'all', limit: 6, query: '' },
+      includeMissed: false
     };
 
     const normalize = value => String(value || '')
@@ -1776,6 +2193,19 @@ def render_article_page(
       ].join(' ');
     }
 
+    function missedSearchText(row) {
+      return [
+        row.player_name,
+        row.challenge_team_abbr,
+        row.challenge_team_name,
+        row.challenge_side,
+        row.role,
+        row.original_call,
+        row.corrected_call,
+        row.base_state
+      ].join(' ');
+    }
+
     function setBoardCount(id, visible, total, limit) {
       document.querySelector(id).textContent = `${visible} of ${total} shown (${displayLimit(limit)})`;
     }
@@ -1797,17 +2227,31 @@ def render_article_page(
       `).join('');
     }
 
+    function teamMetricValue(row, metric) {
+      if (!boardState.includeMissed) return row[metric] || 0;
+      if (metric === 'total_xwpa') return row.decision_xwpa || 0;
+      if (metric === 'risk_adjusted_xwpa') return row.decision_risk_adjusted_xwpa || 0;
+      if (metric === 'batting_xwpa') return row.decision_batting_xwpa || 0;
+      if (metric === 'fielding_xwpa') return row.decision_fielding_xwpa || 0;
+      if (metric === 'xwpa_per_challenge') return row.decision_xwpa_per_opportunity || 0;
+      return row[metric] || 0;
+    }
+
+    function metricLabel(label) {
+      return boardState.includeMissed ? `${label} + Missed` : label;
+    }
+
     function renderTeamBars(metric = boardState.team.metric) {
       boardState.team.metric = metric;
       const labels = {
-        total_xwpa: 'Direct xWPA',
-        risk_adjusted_xwpa: 'Risk Adj.',
-        fielding_xwpa: 'Fielding',
-        batting_xwpa: 'Batting',
-        xwpa_per_challenge: 'Per Challenge'
+        total_xwpa: metricLabel('Direct xWPA'),
+        risk_adjusted_xwpa: metricLabel('Risk Adj.'),
+        fielding_xwpa: metricLabel('Fielding'),
+        batting_xwpa: metricLabel('Batting'),
+        xwpa_per_challenge: metricLabel('Per Opportunity')
       };
       const ranked = [...teams]
-        .sort((a, b) => b[metric] - a[metric])
+        .sort((a, b) => teamMetricValue(b, metric) - teamMetricValue(a, metric))
         .map((row, idx) => ({ ...row, board_rank: idx + 1 }));
       const filtered = ranked
         .filter(row => matchesQuery(teamSearchText(row), boardState.team.query));
@@ -1818,11 +2262,14 @@ def render_article_page(
         document.querySelector('#teamBars').innerHTML = '<div class="empty-state">No teams match that search.</div>';
         return;
       }
-      const max = Math.max(...rows.map(row => Math.abs(row[metric])), .001);
+      const max = Math.max(...rows.map(row => Math.abs(teamMetricValue(row, metric))), .001);
       document.querySelector('#teamBars').innerHTML = rows.map((row, idx) => {
-        const value = row[metric] || 0;
+        const value = teamMetricValue(row, metric);
+        const missedNote = boardState.includeMissed && row.missed_opportunities
+          ? `, ${row.missed_opportunities} missed opp, ${wpaPts(row.missed_xwpa)} left`
+          : '';
         return `
-          <div class="bar-row" title="${row.challenge_team_name}: ${labels[metric]} ${wpaPts(value)}">
+          <div class="bar-row" title="${row.challenge_team_name}: ${labels[metric]} ${wpaPts(value)}${missedNote}">
             <div class="bar-team"><img class="mini-logo" src="${logo(row.challenge_team_id)}" alt="">${row.board_rank}. ${row.challenge_team_abbr}</div>
             <div class="track"><div class="bar-fill ${value < 0 ? 'neg' : ''}" style="width:${Math.max(3, Math.abs(value) / max * 100)}%"></div></div>
             <div class="bar-value ${cls(value)}">${metric === 'xwpa_per_challenge' ? wpaPts(value) : wpaPts(value)}</div>
@@ -1907,9 +2354,14 @@ def render_article_page(
       const isAgainst = mode.includes('_against');
       return (isAgainst ? failedAgainst : players)
         .filter(row => row.role === mode)
-        .sort((a, b) => (isAgainst ? b.fooled_xwpa - a.fooled_xwpa : b.total_xwpa - a.total_xwpa))
+        .sort((a, b) => playerMetricValue(b, isAgainst) - playerMetricValue(a, isAgainst))
         .map((row, idx) => ({ ...row, board_rank: idx + 1 }))
         .filter(row => matchesQuery(playerSearchText(row), boardState.player.query));
+    }
+
+    function playerMetricValue(row, isAgainst = false) {
+      if (isAgainst) return row.fooled_xwpa || 0;
+      return boardState.includeMissed ? (row.decision_xwpa || 0) : (row.total_xwpa || 0);
     }
 
     function renderPlayerBoard(mode = boardState.player.mode) {
@@ -1924,11 +2376,11 @@ def render_article_page(
         return;
       }
       document.querySelector('#playerBoard').innerHTML = rows.map((row, idx) => {
-        const value = isAgainst ? row.fooled_xwpa : row.total_xwpa;
+        const value = playerMetricValue(row, isAgainst);
         const team = playerTeam(row, isAgainst);
         const detail = isAgainst
           ? `${row.failed_challenges_against}/${row.challenges_against} failed against, ${pct(row.failed_challenges_against_rate)}`
-          : `${row.attempts} challenges, ${pct(row.overturn_rate)} won`;
+          : `${row.attempts} challenges, ${pct(row.overturn_rate)} won${boardState.includeMissed && row.missed_opportunities ? `, ${row.missed_opportunities} missed` : ''}`;
         return `<div class="player-row"><div><strong>${row.board_rank}. ${row.player_name}</strong><span>${team} / ${detail}</span></div><div class="${cls(value)}">${wpaPts(value)}</div></div>`;
       }).join('');
     }
@@ -1953,6 +2405,30 @@ def render_article_page(
           <div class="swing-meta"><span>${String(row.game_date).slice(0, 10)}</span><span>${fmtSide(row.challenge_side)}</span></div>
           <h3>${row.board_rank}. ${row.challenge_team_abbr} ${wpaPts(row.total_xwpa)}</h3>
           <p><strong>${row.challenger_name || 'Challenge'}</strong>, ${row.half} ${row.inning}, ${row.balls}-${row.strikes}, bases ${row.base_state}. ${row.original_call} became ${row.actual_call}.</p>
+        </article>
+      `).join('');
+    }
+
+    function renderMissedCards(side = boardState.missed.side) {
+      boardState.missed.side = side;
+      const ranked = missed
+        .filter(row => side === 'all' || row.challenge_side === side)
+        .sort((a, b) => b.missed_expected_xwpa - a.missed_expected_xwpa)
+        .map((row, idx) => ({ ...row, board_rank: idx + 1 }));
+      const filtered = ranked
+        .filter(row => matchesQuery(missedSearchText(row), boardState.missed.query));
+      const rows = limitedRows(filtered, boardState.missed.limit);
+      setBoardCount('#missedCount', rows.length, filtered.length, boardState.missed.limit);
+      updateLimitButtons('missed', rows.length, filtered.length, boardState.missed.query, boardState.missed.limit, 6);
+      if (!rows.length) {
+        document.querySelector('#missedGrid').innerHTML = '<div class="empty-state">No missed opportunities match that search.</div>';
+        return;
+      }
+      document.querySelector('#missedGrid').innerHTML = rows.map(row => `
+        <article class="swing-card">
+          <div class="swing-meta"><span>${String(row.game_date).slice(0, 10)}</span><span>${fmtSide(row.challenge_side)}</span></div>
+          <h3>${row.board_rank}. ${row.challenge_team_abbr} ${wpaPts(row.missed_expected_xwpa)}</h3>
+          <p><strong>${row.player_name || 'Opportunity'}</strong>, ${row.half} ${row.inning}, ${row.balls}-${row.strikes}, bases ${row.base_state}. ${row.original_call} projected to ${row.corrected_call}, ${Number(row.zone_distance_inches).toFixed(1)} inches beyond the edge, ${pct(row.overturn_probability)} overturn probability, ${row.remaining_challenge_losses_before} losses left.</p>
         </article>
       `).join('');
     }
@@ -2006,6 +2482,24 @@ def render_article_page(
       return [...teamOptions, ...playerOptions];
     }
 
+    function missedSuggestionOptions() {
+      const teamOptions = uniqueBy(missed.map(row => ({
+        label: row.challenge_team_name || row.challenge_team_abbr,
+        value: row.challenge_team_name || row.challenge_team_abbr,
+        detail: row.challenge_team_abbr,
+        search: missedSearchText(row)
+      })), option => option.detail);
+      const playerOptions = uniqueBy(missed
+        .filter(row => row.player_name)
+        .map(row => ({
+          label: row.player_name,
+          value: row.player_name,
+          detail: `${row.challenge_team_abbr} / ${fmtSide(row.challenge_side)}`,
+          search: missedSearchText(row)
+        })), option => option.value);
+      return [...teamOptions, ...playerOptions];
+    }
+
     setupTypeahead('#teamBoardSearch', '#teamBoardSuggestions', teamSuggestionOptions, value => {
       boardState.team.query = value;
       boardState.team.limit = 15;
@@ -2020,6 +2514,11 @@ def render_article_page(
       boardState.swing.query = value;
       boardState.swing.limit = 6;
       renderSwingCards();
+    });
+    setupTypeahead('#missedSearch', '#missedSuggestions', missedSuggestionOptions, value => {
+      boardState.missed.query = value;
+      boardState.missed.limit = 6;
+      renderMissedCards();
     });
 
     document.querySelector('#teamShowMore').addEventListener('click', () => {
@@ -2067,6 +2566,31 @@ def render_article_page(
       renderSwingCards();
     });
 
+    document.querySelector('#missedShowMore').addEventListener('click', () => {
+      boardState.missed.limit = boardState.missed.limit === Infinity ? Infinity : boardState.missed.limit + 6;
+      renderMissedCards();
+    });
+    document.querySelector('#missedShowAll').addEventListener('click', () => {
+      boardState.missed.limit = Infinity;
+      renderMissedCards();
+    });
+    document.querySelector('#missedReset').addEventListener('click', () => {
+      boardState.missed.query = '';
+      boardState.missed.limit = 6;
+      document.querySelector('#missedSearch').value = '';
+      renderMissedCards();
+    });
+
+    function setIncludeMissed(value) {
+      boardState.includeMissed = value;
+      document.querySelector('#teamIncludeMissed').checked = value;
+      document.querySelector('#playerIncludeMissed').checked = value;
+      renderTeamBars();
+      renderPlayerBoard();
+    }
+    document.querySelector('#teamIncludeMissed').addEventListener('change', event => setIncludeMissed(event.target.checked));
+    document.querySelector('#playerIncludeMissed').addEventListener('change', event => setIncludeMissed(event.target.checked));
+
     document.querySelectorAll('[data-team-metric]').forEach(button => {
       button.addEventListener('click', () => {
         document.querySelectorAll('[data-team-metric]').forEach(item => item.classList.remove('active'));
@@ -2092,6 +2616,14 @@ def render_article_page(
         renderSwingCards(button.dataset.swingSide);
       });
     });
+    document.querySelectorAll('[data-missed-side]').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-missed-side]').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        boardState.missed.limit = 6;
+        renderMissedCards(button.dataset.missedSide);
+      });
+    });
 
     renderSideTopTeams();
     renderTeamBars();
@@ -2099,6 +2631,7 @@ def render_article_page(
     setupTeamSelect();
     renderPlayerBoard();
     renderSwingCards();
+    renderMissedCards();
   </script>
 </body>
 </html>"""
@@ -2112,6 +2645,9 @@ def render_article_page(
         "__LEAGUE_XWPA_POINTS__": signed_wpa_points(league_xwpa),
         "__LEAGUE_XWPA_WINS__": signed_wins(league_xwpa),
         "__LEAGUE_RISK_WINS__": signed_wins(league_risk),
+        "__MISSED_COUNT__": f"{len(missed_by_value):,}",
+        "__MISSED_TOTAL_POINTS__": signed_wpa_points(sum(float(row.get("missed_expected_xwpa", 0.0)) for row in missed_by_value)),
+        "__TOP_MISSED_PHRASE__": missed_phrase(top_missed),
         "__LEADER_ABBR__": html.escape(str(leader.get("challenge_team_abbr", ""))),
         "__LEADER_PHRASE__": article_team_phrase(leader),
         "__LEADER_PHRASE_SHORT__": html.escape(str(leader.get("challenge_team_name") or leader.get("challenge_team_abbr") or "The leader")),
@@ -2134,6 +2670,7 @@ def render_article_page(
         "__PLAYER_JSON__": player_json,
         "__FAILED_AGAINST_JSON__": failed_against_json,
         "__CHALLENGE_JSON__": challenge_json,
+        "__MISSED_JSON__": missed_json,
         "__ADSENSE_BANNER__": adsense_banner,
     }
     for token, value in replacements.items():
@@ -2510,12 +3047,28 @@ def main() -> int:
     player_rows = [row for row in player_rows if row.get("player_id")]
     failed_against_attempts = build_failed_against_rows(evaluated)
     failed_against_rows = aggregate_failed_against_rows(failed_against_attempts)
+    missed_game_pks = model_game_pks if args.model_scope == "season" else challenge_game_pks
+    print(f"Estimating missed challenge opportunities from {len(missed_game_pks)} game feeds...", file=sys.stderr)
+    missed_rows = build_missed_opportunities(missed_game_pks, evaluated, model, args.force)
+    missed_team_rows = aggregate_missed_rows(
+        missed_rows,
+        ["challenge_team_id", "challenge_team_abbr", "challenge_team_name"],
+    )
+    missed_player_rows = aggregate_missed_rows(
+        [row for row in missed_rows if row.get("player_id")],
+        ["role", "player_id", "player_name", "challenge_team_abbr"],
+    )
+    merge_team_missed_rows(team_rows, missed_team_rows)
+    merge_player_missed_rows(player_rows, missed_player_rows)
 
     write_csv(PROCESSED / "team_abs_xwpa.csv", team_rows)
     write_csv(PROCESSED / "team_side_abs_xwpa.csv", side_rows)
     write_csv(PROCESSED / "player_abs_xwpa.csv", player_rows)
     write_csv(PROCESSED / "player_failed_challenges_against.csv", failed_against_rows)
     write_csv(PROCESSED / "challenges_abs_xwpa.csv", evaluated)
+    write_csv(PROCESSED / "missed_challenge_opportunities.csv", missed_rows)
+    write_csv(PROCESSED / "team_missed_challenge_opportunities.csv", missed_team_rows)
+    write_csv(PROCESSED / "player_missed_challenge_opportunities.csv", missed_player_rows)
 
     summary = {
         "year": args.year,
@@ -2523,6 +3076,7 @@ def main() -> int:
         "model_scope": args.model_scope,
         "model_games": len(model_game_pks),
         "challenge_attempts": len(evaluated),
+        "missed_challenge_opportunities": len(missed_rows),
         "team_rows": len(team_rows),
         "player_rows": len(player_rows),
         "failed_against_rows": len(failed_against_rows),
@@ -2534,6 +3088,7 @@ def main() -> int:
         player_rows,
         failed_against_rows,
         evaluated,
+        missed_rows,
         args.year,
         args.end_date,
         args.adsense_client,
