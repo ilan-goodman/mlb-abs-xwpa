@@ -1572,7 +1572,7 @@ def render_article_page(
 
     <footer>
       Built as a static page from the same daily pipeline that writes the CSVs. The interactive graphics use embedded data, so the page can be published as ordinary static HTML.
-      <div class="codex-note">Generated with Codex.</div>
+      <div class="codex-note">Generated with Codex; because of this, it may contain errors.</div>
     </footer>
   </div>
 
