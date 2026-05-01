@@ -51,10 +51,10 @@ jobs:
           from pathlib import Path
           import re
           html = Path("site/index.html").read_text(encoding="utf-8")
-          match = re.search(r"<script>(.*)</script>", html, re.S)
-          if not match:
+          scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+          if not scripts:
               raise SystemExit("No inline script found in site/index.html")
-          print(match.group(1))
+          print("\n;\n".join(scripts))
           PY
 
       - name: Commit refreshed outputs
