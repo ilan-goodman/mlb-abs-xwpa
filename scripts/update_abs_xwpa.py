@@ -9,6 +9,8 @@ import html
 import io
 import json
 import math
+import os
+import re
 import sys
 import time
 import urllib.parse
@@ -850,6 +852,43 @@ def challenge_phrase(row: dict[str, Any]) -> str:
     )
 
 
+def normalize_adsense_client(value: str | None) -> str:
+    cleaned = (value or "").strip()
+    if not cleaned:
+        return ""
+    if re.fullmatch(r"pub-\d{16}", cleaned):
+        return f"ca-{cleaned}"
+    if re.fullmatch(r"ca-pub-\d{16}", cleaned):
+        return cleaned
+    raise ValueError("AdSense client must look like ca-pub-0000000000000000 or pub-0000000000000000.")
+
+
+def adsense_publisher_id(value: str | None) -> str:
+    client = normalize_adsense_client(value)
+    return client.removeprefix("ca-") if client else ""
+
+
+def render_adsense_banner(client: str | None, slot: str | None) -> str:
+    ad_client = normalize_adsense_client(client)
+    ad_slot = (slot or "").strip()
+    if not ad_client or not ad_slot:
+        return ""
+    safe_client = html.escape(ad_client, quote=True)
+    safe_slot = html.escape(ad_slot, quote=True)
+    return f"""
+    <aside class="ad-banner" aria-label="Advertisement">
+      <div class="ad-label">Advertisement</div>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={safe_client}" crossorigin="anonymous"></script>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="{safe_client}"
+           data-ad-slot="{safe_slot}"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
+    </aside>"""
+
+
 def render_article_page(
     team_rows: list[dict[str, Any]],
     player_rows: list[dict[str, Any]],
@@ -857,6 +896,8 @@ def render_article_page(
     challenge_rows: list[dict[str, Any]],
     year: int,
     end_date: str,
+    adsense_client: str | None = None,
+    adsense_slot: str | None = None,
 ) -> str:
     teams_by_total = sorted(team_rows, key=lambda row: float(row.get("total_xwpa", 0.0)), reverse=True)
     teams_by_risk = sorted(team_rows, key=lambda row: float(row.get("risk_adjusted_xwpa", 0.0)), reverse=True)
@@ -913,6 +954,7 @@ def render_article_page(
         for row in challenges_by_swing
     ]
     challenge_json = json.dumps(article_challenges, ensure_ascii=False)
+    adsense_banner = render_adsense_banner(adsense_client, adsense_slot)
 
     template = """<!doctype html>
 <html lang="en">
@@ -1052,6 +1094,23 @@ def render_article_page(
       text-transform: uppercase;
     }
     .hero-stat strong { display: block; margin-top: 8px; font-size: clamp(28px, 4vw, 46px); line-height: .95; }
+    .ad-banner {
+      max-width: 970px;
+      margin: 18px auto 0;
+      padding: 8px 0 10px;
+      border-top: 1px solid rgba(17,24,39,.18);
+      border-bottom: 1px solid rgba(17,24,39,.18);
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255,249,235,.42);
+      overflow: hidden;
+    }
+    .ad-label {
+      margin-bottom: 6px;
+      font: 800 10px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
     .story-grid {
       display: grid;
       grid-template-columns: minmax(0, 720px) minmax(280px, 1fr);
@@ -1390,6 +1449,7 @@ def render_article_page(
         <div class="hero-stat"><span>League Direct xWPA</span><strong>__LEAGUE_XWPA_POINTS__</strong></div>
         <div class="hero-stat"><span>Top Club</span><strong>__LEADER_ABBR__</strong></div>
       </div>
+      __ADSENSE_BANNER__
     </header>
 
     <div class="story-grid">
@@ -2074,6 +2134,7 @@ def render_article_page(
         "__PLAYER_JSON__": player_json,
         "__FAILED_AGAINST_JSON__": failed_against_json,
         "__CHALLENGE_JSON__": challenge_json,
+        "__ADSENSE_BANNER__": adsense_banner,
     }
     for token, value in replacements.items():
         template = template.replace(token, value)
@@ -2366,6 +2427,16 @@ def main() -> int:
         default="season",
         help="use all completed season games or only games with ABS challenges to train run distributions",
     )
+    parser.add_argument(
+        "--adsense-client",
+        default=os.environ.get("ADSENSE_CLIENT", ""),
+        help="optional AdSense client id, e.g. ca-pub-0000000000000000",
+    )
+    parser.add_argument(
+        "--adsense-slot",
+        default=os.environ.get("ADSENSE_SLOT", ""),
+        help="optional AdSense display ad slot id for the article banner",
+    )
     args = parser.parse_args()
 
     mkdirs()
@@ -2458,11 +2529,26 @@ def main() -> int:
     }
     (PROCESSED / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     dashboard_html = render_dashboard(team_rows, player_rows, failed_against_rows, evaluated, args.year)
-    article_html = render_article_page(team_rows, player_rows, failed_against_rows, evaluated, args.year, args.end_date)
+    article_html = render_article_page(
+        team_rows,
+        player_rows,
+        failed_against_rows,
+        evaluated,
+        args.year,
+        args.end_date,
+        args.adsense_client,
+        args.adsense_slot,
+    )
     (SITE / "dashboard.html").write_text(dashboard_html, encoding="utf-8")
     (SITE / "article.html").write_text(article_html, encoding="utf-8")
     (SITE / "index.html").write_text(article_html, encoding="utf-8")
     (SITE / ".nojekyll").write_text("", encoding="utf-8")
+    publisher_id = adsense_publisher_id(args.adsense_client)
+    ads_txt = SITE / "ads.txt"
+    if publisher_id:
+        ads_txt.write_text(f"google.com, {publisher_id}, DIRECT, f08c47fec0942fa0\n", encoding="utf-8")
+    elif ads_txt.exists():
+        ads_txt.unlink()
     mirror_processed_data_to_site()
 
     print(json.dumps(summary, indent=2), file=sys.stderr)

@@ -120,3 +120,24 @@ The script caches final MLB game feeds in `data/raw/mlb_game_feeds/`, so local
 daily runs only download new completed games. It regenerates the article,
 dashboard, and mirrored CSV data in `site/`, so the Pages site is refreshed by
 the same scheduled job.
+
+## Optional AdSense Banner
+
+The article page can render one unobtrusive responsive AdSense banner below the
+hero summary. It stays disabled unless both of these values are present:
+
+- `ADSENSE_CLIENT`: your AdSense client id, for example
+  `ca-pub-0000000000000000`
+- `ADSENSE_SLOT`: the display ad unit slot id from AdSense
+
+For GitHub Pages, add them as repository variables or secrets named
+`ADSENSE_CLIENT` and `ADSENSE_SLOT`; the scheduled workflow will pass them to
+the generator. For a local build, run:
+
+```bash
+ADSENSE_CLIENT=ca-pub-0000000000000000 ADSENSE_SLOT=1234567890 \
+  python3 scripts/update_abs_xwpa.py --year 2026 --model-scope season
+```
+
+When `ADSENSE_CLIENT` is set, the generator also writes `site/ads.txt` with the
+matching Google seller line.
