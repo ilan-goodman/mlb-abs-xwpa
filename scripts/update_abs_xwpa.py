@@ -910,7 +910,7 @@ def render_article_page(
             "actual_call": row.get("actual_call", ""),
             "total_xwpa": round(float(row.get("total_xwpa", 0.0)), 6),
         }
-        for row in challenges_by_swing[:300]
+        for row in challenges_by_swing
     ]
     challenge_json = json.dumps(article_challenges, ensure_ascii=False)
 
@@ -1131,7 +1131,7 @@ def render_article_page(
       margin-bottom: 8px;
     }
     .button-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-    button, select {
+    button, select, input {
       appearance: none;
       border: 1px solid var(--ink);
       background: var(--panel);
@@ -1142,7 +1142,69 @@ def render_article_page(
       letter-spacing: .02em;
       cursor: pointer;
     }
+    input {
+      cursor: text;
+      min-width: min(100%, 300px);
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+    input::placeholder { color: #78848d; }
     button.active { background: var(--ink); color: white; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .board-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: -4px 0 16px;
+      flex-wrap: wrap;
+    }
+    .typeahead { position: relative; flex: 1 1 280px; max-width: 420px; }
+    .typeahead input { width: 100%; }
+    .suggestions {
+      display: none;
+      position: absolute;
+      z-index: 12;
+      top: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid var(--ink);
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(17,24,39,.2);
+      font: 13px/1.25 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .suggestions.open { display: block; }
+    .suggestion {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid rgba(203,189,165,.7);
+      background: transparent;
+      text-align: left;
+      min-height: 0;
+      padding: 10px 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .suggestion:hover, .suggestion:focus { background: rgba(43,102,126,.12); outline: none; }
+    .suggestion small { display: block; margin-top: 3px; color: var(--muted); font-weight: 700; }
+    .board-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .leaderboard-count {
+      color: var(--muted);
+      font: 800 11px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .empty-state {
+      border: 1px dashed rgba(17,24,39,.35);
+      background: rgba(255,255,255,.36);
+      color: var(--muted);
+      padding: 18px;
+      font: 13px/1.4 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
     .bar-chart { display: grid; gap: 8px; }
     .bar-row {
       display: grid;
@@ -1297,6 +1359,8 @@ def render_article_page(
       .case-grid { grid-template-columns: 1fr; }
       .viz-head { flex-direction: column; }
       .button-row { justify-content: flex-start; }
+      .board-tools { align-items: stretch; }
+      .board-actions { justify-content: flex-start; }
     }
   </style>
 </head>
@@ -1345,7 +1409,7 @@ def render_article_page(
 
       <aside class="sidebar">
         <div class="scorecard">
-          <h2>Top Five Teams</h2>
+          <h2>Quick Top Five</h2>
           <div class="scorecard-list" id="sideTopTeams"></div>
         </div>
         <div class="note-box scorecard">
@@ -1371,6 +1435,18 @@ def render_article_page(
           <button data-team-metric="fielding_xwpa">Fielding</button>
           <button data-team-metric="batting_xwpa">Batting</button>
           <button data-team-metric="xwpa_per_challenge">Per Challenge</button>
+        </div>
+      </div>
+      <div class="board-tools">
+        <div class="typeahead">
+          <input id="teamBoardSearch" placeholder="Search teams" autocomplete="off">
+          <div class="suggestions" id="teamBoardSuggestions"></div>
+        </div>
+        <div class="board-actions">
+          <span class="leaderboard-count" id="teamBoardCount"></span>
+          <button id="teamShowMore">Show 15 More</button>
+          <button id="teamShowAll">Show All</button>
+          <button id="teamReset">Reset</button>
         </div>
       </div>
       <div class="bar-chart" id="teamBars"></div>
@@ -1429,6 +1505,18 @@ def render_article_page(
           <button data-player-mode="pitcher_against">Pitchers: Failed Against</button>
         </div>
       </div>
+      <div class="board-tools">
+        <div class="typeahead">
+          <input id="playerBoardSearch" placeholder="Search players" autocomplete="off">
+          <div class="suggestions" id="playerBoardSuggestions"></div>
+        </div>
+        <div class="board-actions">
+          <span class="leaderboard-count" id="playerBoardCount"></span>
+          <button id="playerShowMore">Show 12 More</button>
+          <button id="playerShowAll">Show All</button>
+          <button id="playerReset">Reset</button>
+        </div>
+      </div>
       <div class="player-board" id="playerBoard"></div>
     </section>
 
@@ -1442,6 +1530,18 @@ def render_article_page(
           <button class="active" data-swing-side="all">All</button>
           <button data-swing-side="batting">Batting</button>
           <button data-swing-side="fielding">Fielding</button>
+        </div>
+      </div>
+      <div class="board-tools">
+        <div class="typeahead">
+          <input id="swingSearch" placeholder="Search players or teams" autocomplete="off">
+          <div class="suggestions" id="swingSuggestions"></div>
+        </div>
+        <div class="board-actions">
+          <span class="leaderboard-count" id="swingCount"></span>
+          <button id="swingShowMore">Show 6 More</button>
+          <button id="swingShowAll">Show All</button>
+          <button id="swingReset">Reset</button>
         </div>
       </div>
       <div class="swing-grid" id="swingGrid"></div>
@@ -1488,6 +1588,143 @@ def render_article_page(
     const pct = v => `${(v * 100).toFixed(1)}%`;
     const cls = v => v >= 0 ? 'value-pos' : 'value-neg';
     const fmtSide = side => side === 'fielding' ? 'Fielding' : side === 'batting' ? 'Batting' : side;
+    const teamByAbbr = new Map(teams.map(row => [row.challenge_team_abbr, row]));
+    const boardState = {
+      team: { metric: 'total_xwpa', limit: 15, query: '' },
+      player: { mode: 'hitter', limit: 12, query: '' },
+      swing: { side: 'all', limit: 6, query: '' }
+    };
+
+    const normalize = value => String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const escapeHTML = value => String(value || '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
+    const matchesQuery = (text, query) => !query || normalize(text).includes(normalize(query));
+    const limitedRows = (rows, limit) => limit === Infinity ? rows : rows.slice(0, limit);
+    const displayLimit = value => value === Infinity ? 'all' : value;
+
+    function uniqueBy(items, keyFn) {
+      const seen = new Set();
+      return items.filter(item => {
+        const key = keyFn(item);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function renderSuggestions(panel, options, query, onSelect) {
+      const q = normalize(query).trim();
+      if (!q) {
+        panel.classList.remove('open');
+        panel.innerHTML = '';
+        return;
+      }
+      const rows = uniqueBy(options, option => `${option.value}|${option.detail || ''}`)
+        .filter(option => normalize(`${option.label} ${option.value} ${option.detail || ''} ${option.search || ''}`).includes(q))
+        .slice(0, 8);
+      if (!rows.length) {
+        panel.classList.remove('open');
+        panel.innerHTML = '';
+        return;
+      }
+      panel.innerHTML = rows.map((option, idx) => `
+        <button class="suggestion" type="button" data-suggestion-index="${idx}">
+          ${escapeHTML(option.label)}
+          ${option.detail ? `<small>${escapeHTML(option.detail)}</small>` : ''}
+        </button>
+      `).join('');
+      panel.classList.add('open');
+      panel.querySelectorAll('[data-suggestion-index]').forEach(button => {
+        button.addEventListener('click', () => {
+          const option = rows[Number(button.dataset.suggestionIndex)];
+          onSelect(option.value);
+          panel.classList.remove('open');
+          panel.innerHTML = '';
+        });
+      });
+    }
+
+    function setupTypeahead(inputId, panelId, getOptions, onQuery) {
+      const input = document.querySelector(inputId);
+      const panel = document.querySelector(panelId);
+      input.addEventListener('input', () => {
+        onQuery(input.value);
+        renderSuggestions(panel, getOptions(), input.value, value => {
+          input.value = value;
+          onQuery(value);
+        });
+      });
+      input.addEventListener('focus', () => renderSuggestions(panel, getOptions(), input.value, value => {
+        input.value = value;
+        onQuery(value);
+      }));
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          panel.classList.remove('open');
+          panel.innerHTML = '';
+        }
+        if (event.key === 'Enter') {
+          const first = panel.querySelector('.suggestion');
+          if (first) {
+            event.preventDefault();
+            first.click();
+          }
+        }
+      });
+    }
+
+    document.addEventListener('click', event => {
+      document.querySelectorAll('.typeahead').forEach(box => {
+        if (!box.contains(event.target)) {
+          const panel = box.querySelector('.suggestions');
+          panel.classList.remove('open');
+          panel.innerHTML = '';
+        }
+      });
+    });
+
+    function teamSearchText(row) {
+      return `${row.challenge_team_name} ${row.challenge_team_abbr}`;
+    }
+
+    function playerTeam(row, isAgainst = row.role && row.role.includes('_against')) {
+      return isAgainst ? row.team_abbr : row.challenge_team_abbr;
+    }
+
+    function playerSearchText(row) {
+      return `${row.player_name} ${playerTeam(row)} ${row.role}`;
+    }
+
+    function swingSearchText(row) {
+      const team = teamByAbbr.get(row.challenge_team_abbr);
+      return [
+        row.challenger_name,
+        row.challenge_team_abbr,
+        team ? team.challenge_team_name : '',
+        row.challenge_side,
+        row.original_call,
+        row.actual_call,
+        row.base_state
+      ].join(' ');
+    }
+
+    function setBoardCount(id, visible, total, limit) {
+      document.querySelector(id).textContent = `${visible} of ${total} shown (${displayLimit(limit)})`;
+    }
+
+    function updateLimitButtons(prefix, visible, total, query, limit, defaultLimit) {
+      document.querySelector(`#${prefix}ShowMore`).disabled = visible >= total;
+      document.querySelector(`#${prefix}ShowAll`).disabled = visible >= total;
+      document.querySelector(`#${prefix}Reset`).disabled = !query && limit === defaultLimit;
+    }
 
     function renderSideTopTeams() {
       const top = [...teams].sort((a, b) => b.total_xwpa - a.total_xwpa).slice(0, 5);
@@ -1500,7 +1737,8 @@ def render_article_page(
       `).join('');
     }
 
-    function renderTeamBars(metric = 'total_xwpa') {
+    function renderTeamBars(metric = boardState.team.metric) {
+      boardState.team.metric = metric;
       const labels = {
         total_xwpa: 'Direct xWPA',
         risk_adjusted_xwpa: 'Risk Adj.',
@@ -1508,13 +1746,24 @@ def render_article_page(
         batting_xwpa: 'Batting',
         xwpa_per_challenge: 'Per Challenge'
       };
-      const rows = [...teams].sort((a, b) => b[metric] - a[metric]).slice(0, 15);
+      const ranked = [...teams]
+        .sort((a, b) => b[metric] - a[metric])
+        .map((row, idx) => ({ ...row, board_rank: idx + 1 }));
+      const filtered = ranked
+        .filter(row => matchesQuery(teamSearchText(row), boardState.team.query));
+      const rows = limitedRows(filtered, boardState.team.limit);
+      setBoardCount('#teamBoardCount', rows.length, filtered.length, boardState.team.limit);
+      updateLimitButtons('team', rows.length, filtered.length, boardState.team.query, boardState.team.limit, 15);
+      if (!rows.length) {
+        document.querySelector('#teamBars').innerHTML = '<div class="empty-state">No teams match that search.</div>';
+        return;
+      }
       const max = Math.max(...rows.map(row => Math.abs(row[metric])), .001);
-      document.querySelector('#teamBars').innerHTML = rows.map(row => {
+      document.querySelector('#teamBars').innerHTML = rows.map((row, idx) => {
         const value = row[metric] || 0;
         return `
           <div class="bar-row" title="${row.challenge_team_name}: ${labels[metric]} ${wpaPts(value)}">
-            <div class="bar-team"><img class="mini-logo" src="${logo(row.challenge_team_id)}" alt="">${row.challenge_team_abbr}</div>
+            <div class="bar-team"><img class="mini-logo" src="${logo(row.challenge_team_id)}" alt="">${row.board_rank}. ${row.challenge_team_abbr}</div>
             <div class="track"><div class="bar-fill ${value < 0 ? 'neg' : ''}" style="width:${Math.max(3, Math.abs(value) / max * 100)}%"></div></div>
             <div class="bar-value ${cls(value)}">${metric === 'xwpa_per_challenge' ? wpaPts(value) : wpaPts(value)}</div>
           </div>
@@ -1594,35 +1843,169 @@ def render_article_page(
       renderCase(select.value);
     }
 
-    function renderPlayerBoard(mode = 'hitter') {
+    function playerRowsForMode(mode) {
       const isAgainst = mode.includes('_against');
-      const rows = (isAgainst ? failedAgainst : players)
+      return (isAgainst ? failedAgainst : players)
         .filter(row => row.role === mode)
         .sort((a, b) => (isAgainst ? b.fooled_xwpa - a.fooled_xwpa : b.total_xwpa - a.total_xwpa))
-        .slice(0, 12);
+        .map((row, idx) => ({ ...row, board_rank: idx + 1 }))
+        .filter(row => matchesQuery(playerSearchText(row), boardState.player.query));
+    }
+
+    function renderPlayerBoard(mode = boardState.player.mode) {
+      boardState.player.mode = mode;
+      const isAgainst = mode.includes('_against');
+      const filtered = playerRowsForMode(mode);
+      const rows = limitedRows(filtered, boardState.player.limit);
+      setBoardCount('#playerBoardCount', rows.length, filtered.length, boardState.player.limit);
+      updateLimitButtons('player', rows.length, filtered.length, boardState.player.query, boardState.player.limit, 12);
+      if (!rows.length) {
+        document.querySelector('#playerBoard').innerHTML = '<div class="empty-state">No players match that search.</div>';
+        return;
+      }
       document.querySelector('#playerBoard').innerHTML = rows.map((row, idx) => {
         const value = isAgainst ? row.fooled_xwpa : row.total_xwpa;
-        const team = isAgainst ? row.team_abbr : row.challenge_team_abbr;
+        const team = playerTeam(row, isAgainst);
         const detail = isAgainst
           ? `${row.failed_challenges_against}/${row.challenges_against} failed against, ${pct(row.failed_challenges_against_rate)}`
           : `${row.attempts} challenges, ${pct(row.overturn_rate)} won`;
-        return `<div class="player-row"><div><strong>${idx + 1}. ${row.player_name}</strong><span>${team} / ${detail}</span></div><div class="${cls(value)}">${wpaPts(value)}</div></div>`;
+        return `<div class="player-row"><div><strong>${row.board_rank}. ${row.player_name}</strong><span>${team} / ${detail}</span></div><div class="${cls(value)}">${wpaPts(value)}</div></div>`;
       }).join('');
     }
 
-    function renderSwingCards(side = 'all') {
-      const rows = challenges
+    function renderSwingCards(side = boardState.swing.side) {
+      boardState.swing.side = side;
+      const ranked = challenges
         .filter(row => side === 'all' || row.challenge_side === side)
         .sort((a, b) => Math.abs(b.total_xwpa) - Math.abs(a.total_xwpa))
-        .slice(0, 6);
-      document.querySelector('#swingGrid').innerHTML = rows.map(row => `
+        .map((row, idx) => ({ ...row, board_rank: idx + 1 }));
+      const filtered = ranked
+        .filter(row => matchesQuery(swingSearchText(row), boardState.swing.query));
+      const rows = limitedRows(filtered, boardState.swing.limit);
+      setBoardCount('#swingCount', rows.length, filtered.length, boardState.swing.limit);
+      updateLimitButtons('swing', rows.length, filtered.length, boardState.swing.query, boardState.swing.limit, 6);
+      if (!rows.length) {
+        document.querySelector('#swingGrid').innerHTML = '<div class="empty-state">No challenges match that search.</div>';
+        return;
+      }
+      document.querySelector('#swingGrid').innerHTML = rows.map((row, idx) => `
         <article class="swing-card">
           <div class="swing-meta"><span>${String(row.game_date).slice(0, 10)}</span><span>${fmtSide(row.challenge_side)}</span></div>
-          <h3>${row.challenge_team_abbr} ${wpaPts(row.total_xwpa)}</h3>
+          <h3>${row.board_rank}. ${row.challenge_team_abbr} ${wpaPts(row.total_xwpa)}</h3>
           <p><strong>${row.challenger_name || 'Challenge'}</strong>, ${row.half} ${row.inning}, ${row.balls}-${row.strikes}, bases ${row.base_state}. ${row.original_call} became ${row.actual_call}.</p>
         </article>
       `).join('');
     }
+
+    const playerModeLabels = {
+      hitter: 'Hitters',
+      catcher: 'Catcher Challenges',
+      pitcher: 'Pitcher Challenges',
+      catcher_against: 'Catchers: Failed Against',
+      pitcher_against: 'Pitchers: Failed Against'
+    };
+
+    function teamSuggestionOptions() {
+      return teams.map(row => ({
+        label: row.challenge_team_name,
+        value: row.challenge_team_name,
+        detail: row.challenge_team_abbr,
+        search: teamSearchText(row)
+      }));
+    }
+
+    function playerSuggestionOptions() {
+      const mode = boardState.player.mode;
+      const rows = (mode.includes('_against') ? failedAgainst : players).filter(row => row.role === mode);
+      return rows.map(row => ({
+        label: row.player_name,
+        value: row.player_name,
+        detail: `${playerTeam(row)} / ${playerModeLabels[mode]}`,
+        search: playerSearchText(row)
+      }));
+    }
+
+    function swingSuggestionOptions() {
+      const teamOptions = uniqueBy(challenges.map(row => {
+        const team = teamByAbbr.get(row.challenge_team_abbr);
+        return {
+          label: team ? team.challenge_team_name : row.challenge_team_abbr,
+          value: team ? team.challenge_team_name : row.challenge_team_abbr,
+          detail: row.challenge_team_abbr,
+          search: `${team ? team.challenge_team_name : ''} ${row.challenge_team_abbr}`
+        };
+      }), option => option.detail);
+      const playerOptions = uniqueBy(challenges
+        .filter(row => row.challenger_name)
+        .map(row => ({
+          label: row.challenger_name,
+          value: row.challenger_name,
+          detail: `${row.challenge_team_abbr} / ${fmtSide(row.challenge_side)}`,
+          search: swingSearchText(row)
+        })), option => option.value);
+      return [...teamOptions, ...playerOptions];
+    }
+
+    setupTypeahead('#teamBoardSearch', '#teamBoardSuggestions', teamSuggestionOptions, value => {
+      boardState.team.query = value;
+      boardState.team.limit = 15;
+      renderTeamBars();
+    });
+    setupTypeahead('#playerBoardSearch', '#playerBoardSuggestions', playerSuggestionOptions, value => {
+      boardState.player.query = value;
+      boardState.player.limit = 12;
+      renderPlayerBoard();
+    });
+    setupTypeahead('#swingSearch', '#swingSuggestions', swingSuggestionOptions, value => {
+      boardState.swing.query = value;
+      boardState.swing.limit = 6;
+      renderSwingCards();
+    });
+
+    document.querySelector('#teamShowMore').addEventListener('click', () => {
+      boardState.team.limit = boardState.team.limit === Infinity ? Infinity : boardState.team.limit + 15;
+      renderTeamBars();
+    });
+    document.querySelector('#teamShowAll').addEventListener('click', () => {
+      boardState.team.limit = Infinity;
+      renderTeamBars();
+    });
+    document.querySelector('#teamReset').addEventListener('click', () => {
+      boardState.team.query = '';
+      boardState.team.limit = 15;
+      document.querySelector('#teamBoardSearch').value = '';
+      renderTeamBars();
+    });
+
+    document.querySelector('#playerShowMore').addEventListener('click', () => {
+      boardState.player.limit = boardState.player.limit === Infinity ? Infinity : boardState.player.limit + 12;
+      renderPlayerBoard();
+    });
+    document.querySelector('#playerShowAll').addEventListener('click', () => {
+      boardState.player.limit = Infinity;
+      renderPlayerBoard();
+    });
+    document.querySelector('#playerReset').addEventListener('click', () => {
+      boardState.player.query = '';
+      boardState.player.limit = 12;
+      document.querySelector('#playerBoardSearch').value = '';
+      renderPlayerBoard();
+    });
+
+    document.querySelector('#swingShowMore').addEventListener('click', () => {
+      boardState.swing.limit = boardState.swing.limit === Infinity ? Infinity : boardState.swing.limit + 6;
+      renderSwingCards();
+    });
+    document.querySelector('#swingShowAll').addEventListener('click', () => {
+      boardState.swing.limit = Infinity;
+      renderSwingCards();
+    });
+    document.querySelector('#swingReset').addEventListener('click', () => {
+      boardState.swing.query = '';
+      boardState.swing.limit = 6;
+      document.querySelector('#swingSearch').value = '';
+      renderSwingCards();
+    });
 
     document.querySelectorAll('[data-team-metric]').forEach(button => {
       button.addEventListener('click', () => {
@@ -1635,6 +2018,9 @@ def render_article_page(
       button.addEventListener('click', () => {
         document.querySelectorAll('[data-player-mode]').forEach(item => item.classList.remove('active'));
         button.classList.add('active');
+        boardState.player.query = '';
+        boardState.player.limit = 12;
+        document.querySelector('#playerBoardSearch').value = '';
         renderPlayerBoard(button.dataset.playerMode);
       });
     });
@@ -1642,6 +2028,7 @@ def render_article_page(
       button.addEventListener('click', () => {
         document.querySelectorAll('[data-swing-side]').forEach(item => item.classList.remove('active'));
         button.classList.add('active');
+        boardState.swing.limit = 6;
         renderSwingCards(button.dataset.swingSide);
       });
     });
