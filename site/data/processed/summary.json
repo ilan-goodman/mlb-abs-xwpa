@@ -1,0 +1,10 @@
+{
+  "year": 2026,
+  "end_date": "2026-05-01",
+  "model_scope": "season",
+  "model_games": 468,
+  "challenge_attempts": 1928,
+  "team_rows": 30,
+  "player_rows": 888,
+  "failed_against_rows": 442
+}

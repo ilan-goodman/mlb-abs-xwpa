@@ -1,0 +1,87 @@
+name: Update ABS xWPA site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+      timezone: "America/Chicago"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore MLB API cache
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: mlb-raw-${{ github.run_id }}
+          restore-keys: |
+            mlb-raw-
+
+      - name: Generate latest metrics and site
+        run: python3 scripts/update_abs_xwpa.py --year 2026 --model-scope season
+
+      - name: Verify generated JavaScript
+        run: |
+          python3 -m py_compile scripts/update_abs_xwpa.py
+          python3 - <<'PY' | node --check -
+          from pathlib import Path
+          import re
+          html = Path("site/index.html").read_text(encoding="utf-8")
+          match = re.search(r"<script>(.*)</script>", html, re.S)
+          if not match:
+              raise SystemExit("No inline script found in site/index.html")
+          print(match.group(1))
+          PY
+
+      - name: Commit refreshed outputs
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          if [ -z "$(git status --porcelain data/processed site)" ]; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/processed site
+          git commit -m "Update ABS xWPA site data"
+          git push
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
