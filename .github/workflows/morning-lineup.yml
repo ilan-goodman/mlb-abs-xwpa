@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: morning-lineup
+  cancel-in-progress: false
+
 jobs:
   send:
     runs-on: ubuntu-latest

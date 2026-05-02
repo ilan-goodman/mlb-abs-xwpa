@@ -720,7 +720,8 @@
 
     const params = new URLSearchParams(window.location.search);
     const state = {
-      selectedTeams: new Set(['sf-giants'])
+      selectedTeams: new Set(['sf-giants']),
+      mode: 'setup'
     };
 
     const el = id => document.getElementById(id);
@@ -770,7 +771,7 @@
       }));
     }
 
-    function buildPayload(action = 'setup_request') {
+    function buildPayload(action = state.mode === 'unsubscribe' ? 'unsubscribe_request' : 'setup_request') {
       const selected = selectedTeamObjects();
       return {
         action,
@@ -899,9 +900,10 @@
         return;
       }
       const payload = buildPayload();
-      const subject = encodeURIComponent('Morning Lineup setup request');
+      const requestLabel = state.mode === 'unsubscribe' ? 'stop request' : 'setup request';
+      const subject = encodeURIComponent(state.mode === 'unsubscribe' ? 'Morning Lineup stop request' : 'Morning Lineup setup request');
       const body = encodeURIComponent([
-        'Please set up this Morning Lineup subscription.',
+        `Please process this Morning Lineup ${requestLabel}.`,
         '',
         'Recipients:',
         payload.recipients.map(email => `- ${email}`).join('\n'),
@@ -917,7 +919,7 @@
 
     async function sendSetupRequest() {
       const endpoint = el('endpointUrl').value.trim();
-      const payload = buildPayload('test_setup_request');
+      const payload = buildPayload();
       if (!payload.recipients.length) {
         showToast('Add at least one recipient email.');
         return;
@@ -972,8 +974,24 @@
     function hydrateFromUrl() {
       const owner = params.get('owner');
       const endpoint = params.get('endpoint');
+      const email = params.get('email');
+      const name = params.get('name');
+      const teamsParam = params.get('teams');
+      const mode = params.get('mode');
+      if (mode === 'unsubscribe') state.mode = 'unsubscribe';
       if (owner) el('ownerEmail').value = owner;
       if (endpoint) el('endpointUrl').value = endpoint;
+      if (email) el('emails').value = email;
+      if (name) el('readerName').value = name;
+      if (teamsParam) {
+        state.selectedTeams = new Set(teamsParam.split(',').map(item => item.trim()).filter(Boolean));
+      }
+      if (mode === 'unsubscribe') {
+        state.selectedTeams = new Set(['mlb']);
+        el('sendSetupButton').textContent = 'Send Stop Request';
+        document.querySelector('.status-card strong').textContent = 'Stop request';
+        document.querySelector('.status-card p').textContent = 'Confirm the email address, then send this request so Ilan can remove it from the daily sender.';
+      }
     }
 
     el('teamTrigger').addEventListener('click', () => {

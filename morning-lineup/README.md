@@ -108,6 +108,13 @@ Add these repository secrets:
 - `MORNING_LINEUP_FROM_EMAIL`: sender address, for example
   `Morning Lineup <news@yourdomain.com>`.
 - `RESEND_API_KEY`: Resend API key.
+- `MORNING_LINEUP_OWNER_EMAIL`: optional address for preference or unsubscribe
+  requests.
+
+The daily email includes links to manage preferences or stop emails. With the
+current static setup page, those links generate a request for you to apply. A
+true one-click unsubscribe needs a private endpoint that can update subscriber
+storage.
 
 ## Source Policy
 
