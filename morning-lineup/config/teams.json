@@ -1,0 +1,225 @@
+[
+  {
+    "id": "mlb",
+    "name": "MLB",
+    "abbreviation": "MLB",
+    "aliases": ["MLB", "Major League Baseball"],
+    "curated_sources": ["mlb_general"]
+  },
+  {
+    "id": "ari-diamondbacks",
+    "name": "Arizona Diamondbacks",
+    "abbreviation": "ARI",
+    "mlb_slug": "dbacks",
+    "aliases": ["Arizona", "Diamondbacks", "D-backs", "Dbacks"]
+  },
+  {
+    "id": "atl-braves",
+    "name": "Atlanta Braves",
+    "abbreviation": "ATL",
+    "mlb_slug": "braves",
+    "aliases": ["Atlanta", "Braves"]
+  },
+  {
+    "id": "bal-orioles",
+    "name": "Baltimore Orioles",
+    "abbreviation": "BAL",
+    "mlb_slug": "orioles",
+    "aliases": ["Baltimore", "Orioles", "O's"]
+  },
+  {
+    "id": "bos-red-sox",
+    "name": "Boston Red Sox",
+    "abbreviation": "BOS",
+    "mlb_slug": "redsox",
+    "aliases": ["Boston", "Red Sox", "Sox"]
+  },
+  {
+    "id": "chc-cubs",
+    "name": "Chicago Cubs",
+    "abbreviation": "CHC",
+    "mlb_slug": "cubs",
+    "aliases": ["Chicago Cubs", "Cubs"]
+  },
+  {
+    "id": "cws-white-sox",
+    "name": "Chicago White Sox",
+    "abbreviation": "CWS",
+    "mlb_slug": "whitesox",
+    "aliases": ["Chicago White Sox", "White Sox", "South Side"]
+  },
+  {
+    "id": "cin-reds",
+    "name": "Cincinnati Reds",
+    "abbreviation": "CIN",
+    "mlb_slug": "reds",
+    "aliases": ["Cincinnati", "Reds"]
+  },
+  {
+    "id": "cle-guardians",
+    "name": "Cleveland Guardians",
+    "abbreviation": "CLE",
+    "mlb_slug": "guardians",
+    "aliases": ["Cleveland", "Guardians"]
+  },
+  {
+    "id": "col-rockies",
+    "name": "Colorado Rockies",
+    "abbreviation": "COL",
+    "mlb_slug": "rockies",
+    "aliases": ["Colorado", "Rockies"]
+  },
+  {
+    "id": "det-tigers",
+    "name": "Detroit Tigers",
+    "abbreviation": "DET",
+    "mlb_slug": "tigers",
+    "aliases": ["Detroit", "Tigers"]
+  },
+  {
+    "id": "hou-astros",
+    "name": "Houston Astros",
+    "abbreviation": "HOU",
+    "mlb_slug": "astros",
+    "aliases": ["Houston", "Astros"]
+  },
+  {
+    "id": "kc-royals",
+    "name": "Kansas City Royals",
+    "abbreviation": "KC",
+    "mlb_slug": "royals",
+    "aliases": ["Kansas City", "Royals", "KC"]
+  },
+  {
+    "id": "la-angels",
+    "name": "Los Angeles Angels",
+    "abbreviation": "LAA",
+    "mlb_slug": "angels",
+    "aliases": ["Angels", "Los Angeles Angels", "Halos"]
+  },
+  {
+    "id": "la-dodgers",
+    "name": "Los Angeles Dodgers",
+    "abbreviation": "LAD",
+    "mlb_slug": "dodgers",
+    "aliases": ["Dodgers", "Los Angeles Dodgers", "LA Dodgers"],
+    "affiliates": ["Oklahoma City Comets", "Tulsa Drillers", "Great Lakes Loons", "Rancho Cucamonga Quakes", "ACL Dodgers", "DSL Dodgers"],
+    "curated_sources": ["true_blue_la", "dodgers_nation"]
+  },
+  {
+    "id": "mia-marlins",
+    "name": "Miami Marlins",
+    "abbreviation": "MIA",
+    "mlb_slug": "marlins",
+    "aliases": ["Miami", "Marlins"]
+  },
+  {
+    "id": "mil-brewers",
+    "name": "Milwaukee Brewers",
+    "abbreviation": "MIL",
+    "mlb_slug": "brewers",
+    "aliases": ["Milwaukee", "Brewers"]
+  },
+  {
+    "id": "min-twins",
+    "name": "Minnesota Twins",
+    "abbreviation": "MIN",
+    "mlb_slug": "twins",
+    "aliases": ["Minnesota", "Twins"]
+  },
+  {
+    "id": "nym-mets",
+    "name": "New York Mets",
+    "abbreviation": "NYM",
+    "mlb_slug": "mets",
+    "aliases": ["New York Mets", "Mets"]
+  },
+  {
+    "id": "nyy-yankees",
+    "name": "New York Yankees",
+    "abbreviation": "NYY",
+    "mlb_slug": "yankees",
+    "aliases": ["New York Yankees", "Yankees", "Yanks"]
+  },
+  {
+    "id": "ath-athletics",
+    "name": "Athletics",
+    "abbreviation": "ATH",
+    "mlb_slug": "athletics",
+    "aliases": ["Athletics", "A's", "Oakland A's", "Sacramento Athletics"]
+  },
+  {
+    "id": "phi-phillies",
+    "name": "Philadelphia Phillies",
+    "abbreviation": "PHI",
+    "mlb_slug": "phillies",
+    "aliases": ["Philadelphia", "Phillies", "Phils"]
+  },
+  {
+    "id": "pit-pirates",
+    "name": "Pittsburgh Pirates",
+    "abbreviation": "PIT",
+    "mlb_slug": "pirates",
+    "aliases": ["Pittsburgh", "Pirates", "Bucs"]
+  },
+  {
+    "id": "sd-padres",
+    "name": "San Diego Padres",
+    "abbreviation": "SD",
+    "mlb_slug": "padres",
+    "aliases": ["San Diego", "Padres", "Friars"],
+    "affiliates": ["El Paso Chihuahuas", "San Antonio Missions", "Fort Wayne TinCaps", "Lake Elsinore Storm", "ACL Padres", "DSL Padres"],
+    "curated_sources": ["gaslamp_ball", "friars_on_base"]
+  },
+  {
+    "id": "sf-giants",
+    "name": "San Francisco Giants",
+    "abbreviation": "SF",
+    "mlb_slug": "giants",
+    "aliases": ["San Francisco", "Giants", "SF Giants"],
+    "affiliates": ["Sacramento River Cats", "Richmond Flying Squirrels", "Eugene Emeralds", "San Jose Giants", "ACL Giants", "DSL Giants"],
+    "curated_sources": ["mccovey_chronicles", "sfgate_giants", "nbc_bay_area_giants"]
+  },
+  {
+    "id": "sea-mariners",
+    "name": "Seattle Mariners",
+    "abbreviation": "SEA",
+    "mlb_slug": "mariners",
+    "aliases": ["Seattle", "Mariners", "M's"]
+  },
+  {
+    "id": "stl-cardinals",
+    "name": "St. Louis Cardinals",
+    "abbreviation": "STL",
+    "mlb_slug": "cardinals",
+    "aliases": ["St. Louis", "Cardinals", "Cards"]
+  },
+  {
+    "id": "tb-rays",
+    "name": "Tampa Bay Rays",
+    "abbreviation": "TB",
+    "mlb_slug": "rays",
+    "aliases": ["Tampa Bay", "Rays"]
+  },
+  {
+    "id": "tex-rangers",
+    "name": "Texas Rangers",
+    "abbreviation": "TEX",
+    "mlb_slug": "rangers",
+    "aliases": ["Texas", "Rangers"]
+  },
+  {
+    "id": "tor-blue-jays",
+    "name": "Toronto Blue Jays",
+    "abbreviation": "TOR",
+    "mlb_slug": "bluejays",
+    "aliases": ["Toronto", "Blue Jays", "Jays"]
+  },
+  {
+    "id": "wsh-nationals",
+    "name": "Washington Nationals",
+    "abbreviation": "WSH",
+    "mlb_slug": "nationals",
+    "aliases": ["Washington", "Nationals", "Nats"]
+  }
+]

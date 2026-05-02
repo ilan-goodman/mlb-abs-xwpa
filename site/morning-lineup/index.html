@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Morning Lineup Setup</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17231d;
+      --muted: #5b665f;
+      --paper: #fbfaf4;
+      --panel: #ffffff;
+      --field: #f6f4ea;
+      --grass: #1f6f4a;
+      --grass-dark: #134a34;
+      --clay: #b84d2e;
+      --gold: #d6a845;
+      --line: #cfd8cc;
+      --shadow: 0 18px 45px rgba(23, 35, 29, .12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(31, 111, 74, .08) 1px, transparent 1px) 0 0 / 34px 34px,
+        linear-gradient(0deg, rgba(31, 111, 74, .06) 1px, transparent 1px) 0 0 / 34px 34px,
+        var(--paper);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr);
+      gap: 28px;
+      align-items: end;
+      padding: 26px 0 22px;
+      border-bottom: 3px solid var(--ink);
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--clay);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 780px;
+      font-size: clamp(46px, 8vw, 96px);
+      line-height: .88;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      margin: 18px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 21px;
+      line-height: 1.38;
+    }
+
+    .status-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 7px solid var(--grass);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .status-card strong {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .status-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(360px, .68fr);
+      gap: 22px;
+      align-items: start;
+      margin-top: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0;
+    }
+
+    .panel-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    form {
+      display: grid;
+      gap: 18px;
+      padding: 22px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    label,
+    .field-label {
+      display: grid;
+      gap: 8px;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 0;
+      line-height: 1.35;
+      text-transform: none;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #bfcabd;
+      background: var(--field);
+      color: var(--ink);
+      padding: 13px 14px;
+      border-radius: 0;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    textarea {
+      min-height: 118px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus,
+    .team-picker.open .team-trigger {
+      outline: 3px solid rgba(214, 168, 69, .45);
+      outline-offset: 1px;
+      border-color: var(--grass);
+    }
+
+    .team-picker {
+      position: relative;
+    }
+
+    .team-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+      width: 100%;
+      border: 1px solid #bfcabd;
+      background: var(--field);
+      color: var(--ink);
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 18px;
+    }
+
+    .team-trigger span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .team-trigger svg {
+      flex: 0 0 auto;
+    }
+
+    .team-menu {
+      position: absolute;
+      z-index: 10;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      display: none;
+      max-height: 360px;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .team-picker.open .team-menu {
+      display: block;
+    }
+
+    .team-menu-search {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #f4f7ef;
+    }
+
+    .team-list {
+      max-height: 295px;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .team-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 8px;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 17px;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 400;
+    }
+
+    .team-option:hover {
+      background: #eef4ea;
+    }
+
+    .team-option input {
+      width: auto;
+      min-width: 20px;
+      min-height: 20px;
+      accent-color: var(--grass);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 34px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid #b9c7b4;
+      background: #edf5ea;
+      color: var(--grass-dark);
+      padding: 6px 9px;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .chip button {
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .toggle-row input {
+      width: auto;
+      min-width: 20px;
+      min-height: 20px;
+      accent-color: var(--grass);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding-top: 6px;
+    }
+
+    .primary,
+    .secondary,
+    .ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 11px 15px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .primary {
+      background: var(--grass);
+      color: white;
+    }
+
+    .secondary {
+      background: var(--clay);
+      color: white;
+    }
+
+    .ghost {
+      border: 1px solid #bfcabd;
+      background: #f9fbf3;
+      color: var(--ink);
+    }
+
+    .primary:hover,
+    .secondary:hover,
+    .ghost:hover {
+      filter: brightness(.96);
+    }
+
+    .preview {
+      position: sticky;
+      top: 18px;
+      overflow: hidden;
+    }
+
+    .preview-body {
+      padding: 18px 20px 22px;
+    }
+
+    .recipient-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .recipient-pill {
+      border: 1px solid #cbd4c7;
+      background: #f4f7ef;
+      padding: 5px 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .email-preview {
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      padding: 18px;
+    }
+
+    .email-preview h3 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .email-preview p {
+      margin: 0 0 13px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 17px;
+    }
+
+    .article-list {
+      display: grid;
+      gap: 10px;
+      margin: 16px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .article-list li {
+      border-left: 5px solid var(--gold);
+      background: #f6f4ea;
+      padding: 10px 12px;
+      line-height: 1.35;
+    }
+
+    .article-list strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 3px;
+    }
+
+    .article-list span {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .setup-box {
+      margin-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .setup-output {
+      min-height: 142px;
+      font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #213028;
+      background: #eef4ea;
+    }
+
+    .notice {
+      border-left: 5px solid var(--clay);
+      background: #fff7ec;
+      padding: 12px 14px;
+      color: #5c3b2e;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    details {
+      border-top: 1px solid var(--line);
+      padding: 16px 22px 22px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--grass-dark);
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .advanced-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 15px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(420px, calc(100% - 36px));
+      transform: translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      background: var(--ink);
+      color: #fff;
+      padding: 13px 16px;
+      box-shadow: var(--shadow);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 900px) {
+      header,
+      .layout,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .preview {
+        position: static;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      header,
+      .panel:not(.preview),
+      .status-card,
+      .toast {
+        display: none;
+      }
+
+      .shell,
+      .layout,
+      .preview,
+      .panel,
+      .preview-body {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        display: block;
+        box-shadow: none;
+        border: 0;
+      }
+
+      .email-preview {
+        border: 0;
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Family baseball reader</p>
+        <h1>Set up a morning packet.</h1>
+        <p class="intro">Choose teams, add one or more recipients, preview the printable email, then send the setup to Ilan or download the configuration.</p>
+      </div>
+      <aside class="status-card">
+        <strong>Safe public page</strong>
+        <p>This page does not store emails or expose API keys. It prepares a setup request that the private daily sender can use.</p>
+      </aside>
+    </header>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Reader Details</h2>
+          <p>Everything here is plain-language on purpose. Multiple email addresses are fine.</p>
+        </div>
+
+        <form id="setupForm">
+          <label>
+            Recipient name
+            <input id="readerName" name="readerName" placeholder="Grandpa" autocomplete="name">
+          </label>
+
+          <label>
+            Email recipient(s)
+            <span class="hint">Use commas, spaces, or one address per line.</span>
+            <textarea id="emails" name="emails" placeholder="grandpa@example.com&#10;mom@example.com" required></textarea>
+          </label>
+
+          <div class="field-label">
+            Teams
+            <span class="hint">Open the menu and choose as many as you want.</span>
+            <div class="team-picker" id="teamPicker">
+              <button class="team-trigger" id="teamTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span id="teamTriggerText">Choose teams</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <div class="team-menu" id="teamMenu">
+                <div class="team-menu-search">
+                  <input id="teamSearch" placeholder="Search teams" autocomplete="off">
+                </div>
+                <div class="team-list" id="teamList" role="listbox" aria-multiselectable="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chips" id="teamChips" aria-live="polite"></div>
+
+          <div class="grid">
+            <label>
+              Send time
+              <input id="sendTime" type="time" value="05:00">
+            </label>
+            <label>
+              Time zone
+              <select id="timezone">
+                <option value="America/Los_Angeles">Pacific time</option>
+                <option value="America/Chicago">Central time</option>
+                <option value="America/New_York">Eastern time</option>
+                <option value="America/Denver">Mountain time</option>
+              </select>
+            </label>
+            <label>
+              Max articles
+              <input id="maxArticles" type="number" min="1" max="12" value="6">
+            </label>
+            <label>
+              PDF type size
+              <input id="fontSize" type="number" min="14" max="24" value="18">
+            </label>
+          </div>
+
+          <label class="toggle-row">
+            <input id="includeMinors" type="checkbox" checked>
+            Include minor league affiliate news when available
+          </label>
+
+          <div class="actions">
+            <button class="primary" id="previewButton" type="button">Preview</button>
+            <button class="ghost" id="printPreviewButton" type="button">Print Sample</button>
+            <button class="ghost" id="downloadButton" type="button">Download Setup</button>
+            <button class="secondary" id="sendSetupButton" type="button">Send Setup Request</button>
+          </div>
+        </form>
+
+        <details>
+          <summary>Advanced delivery settings</summary>
+          <div class="advanced-grid">
+            <label>
+              Ilan's email for setup requests
+              <input id="ownerEmail" placeholder="ilan@example.com">
+              <span class="hint">You can also add ?owner=ilan@example.com to this page's URL.</span>
+            </label>
+            <label>
+              Optional setup endpoint
+              <input id="endpointUrl" placeholder="https://script.google.com/macros/s/.../exec">
+              <span class="hint">Leave blank unless Ilan has connected a private backend. API keys never belong in this page.</span>
+            </label>
+          </div>
+        </details>
+      </section>
+
+      <aside class="panel preview">
+        <div class="panel-head">
+          <h2>Preview and Setup</h2>
+          <p>This is what the morning note and setup payload look like.</p>
+        </div>
+        <div class="preview-body">
+          <div class="recipient-line" id="recipientLine"></div>
+          <div class="email-preview" id="emailPreview"></div>
+          <div class="setup-box">
+            <label>
+              Setup data
+              <textarea class="setup-output" id="setupOutput" readonly></textarea>
+            </label>
+            <div class="actions">
+              <button class="ghost" id="copyButton" type="button">Copy Setup</button>
+              <button class="ghost" id="mailtoButton" type="button">Open Email Draft</button>
+            </div>
+            <p class="notice">A real test email requires a private sender such as Resend, Brevo, Mailjet, or SMTP. Until that is connected, this page previews the packet and prepares the setup request.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const teams = [
+      { id: 'mlb', name: 'MLB', abbr: 'MLB', aliases: ['Major League Baseball'] },
+      { id: 'ari-diamondbacks', name: 'Arizona Diamondbacks', abbr: 'ARI', aliases: ['D-backs', 'Dbacks'] },
+      { id: 'atl-braves', name: 'Atlanta Braves', abbr: 'ATL', aliases: [] },
+      { id: 'bal-orioles', name: 'Baltimore Orioles', abbr: 'BAL', aliases: ["O's"] },
+      { id: 'bos-red-sox', name: 'Boston Red Sox', abbr: 'BOS', aliases: ['Sox'] },
+      { id: 'chc-cubs', name: 'Chicago Cubs', abbr: 'CHC', aliases: [] },
+      { id: 'cws-white-sox', name: 'Chicago White Sox', abbr: 'CWS', aliases: [] },
+      { id: 'cin-reds', name: 'Cincinnati Reds', abbr: 'CIN', aliases: [] },
+      { id: 'cle-guardians', name: 'Cleveland Guardians', abbr: 'CLE', aliases: [] },
+      { id: 'col-rockies', name: 'Colorado Rockies', abbr: 'COL', aliases: [] },
+      { id: 'det-tigers', name: 'Detroit Tigers', abbr: 'DET', aliases: [] },
+      { id: 'hou-astros', name: 'Houston Astros', abbr: 'HOU', aliases: [] },
+      { id: 'kc-royals', name: 'Kansas City Royals', abbr: 'KC', aliases: [] },
+      { id: 'la-angels', name: 'Los Angeles Angels', abbr: 'LAA', aliases: ['Halos'] },
+      { id: 'la-dodgers', name: 'Los Angeles Dodgers', abbr: 'LAD', aliases: ['Dodgers'] },
+      { id: 'mia-marlins', name: 'Miami Marlins', abbr: 'MIA', aliases: [] },
+      { id: 'mil-brewers', name: 'Milwaukee Brewers', abbr: 'MIL', aliases: [] },
+      { id: 'min-twins', name: 'Minnesota Twins', abbr: 'MIN', aliases: [] },
+      { id: 'nym-mets', name: 'New York Mets', abbr: 'NYM', aliases: ['Mets'] },
+      { id: 'nyy-yankees', name: 'New York Yankees', abbr: 'NYY', aliases: ['Yankees'] },
+      { id: 'ath-athletics', name: 'Athletics', abbr: 'ATH', aliases: ["A's"] },
+      { id: 'phi-phillies', name: 'Philadelphia Phillies', abbr: 'PHI', aliases: ['Phils'] },
+      { id: 'pit-pirates', name: 'Pittsburgh Pirates', abbr: 'PIT', aliases: ['Bucs'] },
+      { id: 'sd-padres', name: 'San Diego Padres', abbr: 'SD', aliases: ['Friars'] },
+      { id: 'sf-giants', name: 'San Francisco Giants', abbr: 'SF', aliases: ['SF Giants'] },
+      { id: 'sea-mariners', name: 'Seattle Mariners', abbr: 'SEA', aliases: ["M's"] },
+      { id: 'stl-cardinals', name: 'St. Louis Cardinals', abbr: 'STL', aliases: ['Cards'] },
+      { id: 'tb-rays', name: 'Tampa Bay Rays', abbr: 'TB', aliases: [] },
+      { id: 'tex-rangers', name: 'Texas Rangers', abbr: 'TEX', aliases: [] },
+      { id: 'tor-blue-jays', name: 'Toronto Blue Jays', abbr: 'TOR', aliases: ['Jays'] },
+      { id: 'wsh-nationals', name: 'Washington Nationals', abbr: 'WSH', aliases: ['Nats'] }
+    ];
+
+    const sampleArticles = [
+      'Official game recap from MLB.com',
+      'One beat or local analysis piece',
+      'A minor league or prospect note when it adds something new',
+      'One broader MLB story if the selected team is quiet'
+    ];
+
+    const params = new URLSearchParams(window.location.search);
+    const state = {
+      selectedTeams: new Set(['sf-giants'])
+    };
+
+    const el = id => document.getElementById(id);
+
+    function htmlEscape(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function parseEmails(value) {
+      return value
+        .split(/[,\s]+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .filter((item, index, arr) => arr.indexOf(item) === index);
+    }
+
+    function selectedTeamObjects() {
+      return teams.filter(team => state.selectedTeams.has(team.id));
+    }
+
+    function labelForTeams(selected) {
+      if (!selected.length) return 'baseball';
+      if (selected.length === 1) return selected[0].name;
+      if (selected.length === 2) return `${selected[0].name} and ${selected[1].name}`;
+      return `${selected.slice(0, -1).map(team => team.name).join(', ')}, and ${selected.at(-1).name}`;
+    }
+
+    function buildSubscribers() {
+      const emails = parseEmails(el('emails').value);
+      const selected = selectedTeamObjects();
+      const teamIds = selected.map(team => team.id);
+      const sendHour = Number((el('sendTime').value || '05:00').split(':')[0]);
+      return emails.map(email => ({
+        email,
+        name: el('readerName').value.trim(),
+        team_id: teamIds[0] || 'mlb',
+        team_ids: teamIds.length ? teamIds : ['mlb'],
+        timezone: el('timezone').value,
+        send_hour: sendHour,
+        max_articles: Number(el('maxArticles').value || 6),
+        font_size: Number(el('fontSize').value || 18),
+        include_minor_leagues: el('includeMinors').checked
+      }));
+    }
+
+    function buildPayload(action = 'setup_request') {
+      const selected = selectedTeamObjects();
+      return {
+        action,
+        created_at: new Date().toISOString(),
+        owner_email: el('ownerEmail').value.trim(),
+        recipients: parseEmails(el('emails').value),
+        teams: selected.map(team => ({ id: team.id, name: team.name, abbreviation: team.abbr })),
+        preferences: {
+          reader_name: el('readerName').value.trim(),
+          send_time: el('sendTime').value,
+          timezone: el('timezone').value,
+          max_articles: Number(el('maxArticles').value || 6),
+          font_size: Number(el('fontSize').value || 18),
+          include_minor_leagues: el('includeMinors').checked
+        },
+        subscribers: buildSubscribers()
+      };
+    }
+
+    function renderTeamList() {
+      const query = el('teamSearch').value.trim().toLowerCase();
+      const rows = teams
+        .filter(team => {
+          const haystack = `${team.name} ${team.abbr} ${team.aliases.join(' ')}`.toLowerCase();
+          return haystack.includes(query);
+        })
+        .map(team => `
+          <label class="team-option">
+            <input type="checkbox" value="${htmlEscape(team.id)}" ${state.selectedTeams.has(team.id) ? 'checked' : ''}>
+            <span>${htmlEscape(team.name)} <span class="hint">${htmlEscape(team.abbr)}</span></span>
+          </label>
+        `).join('');
+      el('teamList').innerHTML = rows || '<p class="hint" style="padding: 10px;">No matching teams.</p>';
+      el('teamList').querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', event => {
+          if (event.target.checked) {
+            state.selectedTeams.add(event.target.value);
+          } else {
+            state.selectedTeams.delete(event.target.value);
+          }
+          if (!state.selectedTeams.size) state.selectedTeams.add('mlb');
+          renderAll();
+        });
+      });
+    }
+
+    function renderChips() {
+      const selected = selectedTeamObjects();
+      el('teamTriggerText').textContent = selected.length ? labelForTeams(selected) : 'Choose teams';
+      el('teamChips').innerHTML = selected.map(team => `
+        <span class="chip">
+          ${htmlEscape(team.name)}
+          <button type="button" aria-label="Remove ${htmlEscape(team.name)}" data-remove-team="${htmlEscape(team.id)}">x</button>
+        </span>
+      `).join('');
+      el('teamChips').querySelectorAll('[data-remove-team]').forEach(button => {
+        button.addEventListener('click', () => {
+          state.selectedTeams.delete(button.dataset.removeTeam);
+          if (!state.selectedTeams.size) state.selectedTeams.add('mlb');
+          renderAll();
+        });
+      });
+    }
+
+    function renderPreview() {
+      const payload = buildPayload();
+      const recipients = payload.recipients;
+      const selected = selectedTeamObjects();
+      const teamLabel = labelForTeams(selected);
+      const readerName = payload.preferences.reader_name || 'the reader';
+      const articleCount = Math.min(payload.preferences.max_articles, sampleArticles.length);
+      const articleRows = sampleArticles.slice(0, articleCount).map((title, index) => `
+        <li>
+          <strong>${index + 1}. ${htmlEscape(title)}</strong>
+          <span>Large-type PDF attachment</span>
+        </li>
+      `).join('');
+
+      el('recipientLine').innerHTML = recipients.length
+        ? recipients.map(email => `<span class="recipient-pill">${htmlEscape(email)}</span>`).join('')
+        : '<span class="recipient-pill">No recipients yet</span>';
+
+      el('emailPreview').innerHTML = `
+        <h3>${htmlEscape(teamLabel)} Morning Lineup</h3>
+        <p>Good morning ${htmlEscape(readerName)},</p>
+        <p>Attached are today's printable ${htmlEscape(teamLabel)} baseball articles. They are set in ${payload.preferences.font_size}px type and selected to avoid repeating the same story.</p>
+        <ul class="article-list">${articleRows}</ul>
+        <p>Thank you for printing and sharing these stories. A good box score is better with company.</p>
+      `;
+
+      el('setupOutput').value = JSON.stringify(payload.subscribers, null, 2);
+    }
+
+    function renderAll() {
+      renderTeamList();
+      renderChips();
+      renderPreview();
+    }
+
+    function showToast(message) {
+      el('toast').textContent = message;
+      el('toast').classList.add('show');
+      window.setTimeout(() => el('toast').classList.remove('show'), 2600);
+    }
+
+    function downloadSetup() {
+      const payload = buildPayload();
+      const blob = new Blob([JSON.stringify(payload.subscribers, null, 2) + '\n'], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'morning-lineup-subscribers.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast('Setup JSON downloaded.');
+    }
+
+    async function copySetup() {
+      await navigator.clipboard.writeText(el('setupOutput').value);
+      showToast('Setup copied.');
+    }
+
+    function mailtoSetup() {
+      const owner = el('ownerEmail').value.trim();
+      if (!owner) {
+        showToast("Add Ilan's email in Advanced settings first.");
+        return;
+      }
+      const payload = buildPayload();
+      const subject = encodeURIComponent('Morning Lineup setup request');
+      const body = encodeURIComponent([
+        'Please set up this Morning Lineup subscription.',
+        '',
+        'Recipients:',
+        payload.recipients.map(email => `- ${email}`).join('\n'),
+        '',
+        'Teams:',
+        payload.teams.map(team => `- ${team.name}`).join('\n'),
+        '',
+        'Subscriber JSON:',
+        JSON.stringify(payload.subscribers, null, 2)
+      ].join('\n'));
+      window.location.href = `mailto:${encodeURIComponent(owner)}?subject=${subject}&body=${body}`;
+    }
+
+    async function sendSetupRequest() {
+      const endpoint = el('endpointUrl').value.trim();
+      const payload = buildPayload('test_setup_request');
+      if (!payload.recipients.length) {
+        showToast('Add at least one recipient email.');
+        return;
+      }
+      if (!endpoint) {
+        mailtoSetup();
+        return;
+      }
+      try {
+        await fetch(endpoint, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        showToast('Setup request sent to the private endpoint.');
+      } catch (error) {
+        showToast('Could not reach the endpoint. Opening an email draft instead.');
+        mailtoSetup();
+      }
+    }
+
+    function printSample() {
+      const previewHtml = el('emailPreview').innerHTML;
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('Popup blocked. Use your browser print command from this page.');
+        return;
+      }
+      printWindow.document.write(`
+        <!doctype html>
+        <html>
+        <head>
+          <title>Morning Lineup Sample</title>
+          <style>
+            body { font-family: Georgia, "Times New Roman", serif; margin: 48px; color: #17231d; }
+            h3 { font-size: 34px; margin: 0 0 18px; }
+            p, li { font-size: 22px; line-height: 1.48; }
+            .article-list { padding-left: 0; list-style: none; }
+            .article-list li { border-left: 6px solid #d6a845; padding: 10px 14px; margin: 14px 0; background: #f6f4ea; }
+            .article-list span { display: block; font-size: 17px; color: #5b665f; }
+          </style>
+        </head>
+        <body>${previewHtml}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
+
+    function hydrateFromUrl() {
+      const owner = params.get('owner');
+      const endpoint = params.get('endpoint');
+      if (owner) el('ownerEmail').value = owner;
+      if (endpoint) el('endpointUrl').value = endpoint;
+    }
+
+    el('teamTrigger').addEventListener('click', () => {
+      const picker = el('teamPicker');
+      const open = !picker.classList.contains('open');
+      picker.classList.toggle('open', open);
+      el('teamTrigger').setAttribute('aria-expanded', String(open));
+      if (open) el('teamSearch').focus();
+    });
+
+    document.addEventListener('click', event => {
+      if (!el('teamPicker').contains(event.target)) {
+        el('teamPicker').classList.remove('open');
+        el('teamTrigger').setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    ['readerName', 'emails', 'sendTime', 'timezone', 'maxArticles', 'fontSize', 'includeMinors'].forEach(id => {
+      el(id).addEventListener('input', renderPreview);
+      el(id).addEventListener('change', renderPreview);
+    });
+
+    el('teamSearch').addEventListener('input', renderTeamList);
+    el('previewButton').addEventListener('click', () => {
+      renderPreview();
+      showToast('Preview refreshed.');
+    });
+    el('downloadButton').addEventListener('click', downloadSetup);
+    el('copyButton').addEventListener('click', copySetup);
+    el('mailtoButton').addEventListener('click', mailtoSetup);
+    el('sendSetupButton').addEventListener('click', sendSetupRequest);
+    el('printPreviewButton').addEventListener('click', printSample);
+
+    hydrateFromUrl();
+    renderAll();
+  </script>
+</body>
+</html>

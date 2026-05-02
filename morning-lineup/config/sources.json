@@ -1,0 +1,66 @@
+[
+  {
+    "id": "mlb_general",
+    "name": "MLB.com News",
+    "type": "html_index",
+    "url": "https://www.mlb.com/news",
+    "targets": ["mlb"],
+    "weight": 7
+  },
+  {
+    "id": "mccovey_chronicles",
+    "name": "McCovey Chronicles",
+    "type": "rss",
+    "url": "https://www.mccoveychronicles.com/rss/index.xml",
+    "targets": ["sf-giants"],
+    "weight": 9
+  },
+  {
+    "id": "sfgate_giants",
+    "name": "SFGATE Giants",
+    "type": "rss",
+    "url": "https://www.sfgate.com/sports/feed/san-francisco-giants-rss-feed-428.php",
+    "targets": ["sf-giants"],
+    "weight": 8
+  },
+  {
+    "id": "nbc_bay_area_giants",
+    "name": "NBC Sports Bay Area Giants",
+    "type": "html_index",
+    "url": "https://www.nbcsportsbayarea.com/mlb/san-francisco-giants/",
+    "targets": ["sf-giants"],
+    "weight": 8
+  },
+  {
+    "id": "true_blue_la",
+    "name": "True Blue LA",
+    "type": "rss",
+    "url": "https://www.truebluela.com/rss/index.xml",
+    "targets": ["la-dodgers"],
+    "weight": 9
+  },
+  {
+    "id": "dodgers_nation",
+    "name": "Dodgers Nation",
+    "type": "rss",
+    "url": "https://dodgersnation.com/feed/",
+    "targets": ["la-dodgers"],
+    "weight": 7
+  },
+  {
+    "id": "gaslamp_ball",
+    "name": "Gaslamp Ball",
+    "type": "rss",
+    "url": "https://www.gaslampball.com/rss/index.xml",
+    "targets": ["sd-padres"],
+    "weight": 9
+  },
+  {
+    "id": "friars_on_base",
+    "name": "Friars on Base",
+    "type": "rss",
+    "url": "https://friarsonbase.com/feed/",
+    "targets": ["sd-padres"],
+    "weight": 7
+  }
+]

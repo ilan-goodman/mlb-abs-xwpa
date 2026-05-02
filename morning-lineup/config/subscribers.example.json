@@ -1,0 +1,13 @@
+[
+  {
+    "email": "reader@example.com",
+    "name": "Grandpa",
+    "team_id": "sf-giants",
+    "team_ids": ["sf-giants"],
+    "timezone": "America/Los_Angeles",
+    "send_hour": 5,
+    "max_articles": 6,
+    "font_size": 18,
+    "include_minor_leagues": true
+  }
+]

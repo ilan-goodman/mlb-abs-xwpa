@@ -1,0 +1,48 @@
+# Shareable Setup Page
+
+The public setup page is published inside the existing GitHub Pages site at:
+
+```text
+https://ilan-goodman.github.io/mlb-abs-xwpa/morning-lineup/
+```
+
+It is intentionally static and safe:
+
+- It does not store recipient emails.
+- It does not include any Resend, Brevo, SMTP, or GitHub API keys.
+- It lets a family member choose teams, enter one or more email recipients,
+  preview the morning note, print a sample, download the subscriber JSON, or
+  email the setup request to you.
+
+## Recommended Family Flow
+
+1. Share the page with your mom.
+2. Ask her to fill in the reader name, email recipients, and teams.
+3. Ask her to click `Preview` and `Print Sample`.
+4. Ask her to click `Send Setup Request`.
+5. You paste the generated subscriber JSON into the private sender config or
+   GitHub secret used by the daily job.
+
+You can prefill your email in the setup page URL:
+
+```text
+https://ilan-goodman.github.io/mlb-abs-xwpa/morning-lineup/?owner=you@example.com
+```
+
+## Optional Endpoint
+
+The page also supports an optional private setup endpoint:
+
+```text
+https://ilan-goodman.github.io/mlb-abs-xwpa/morning-lineup/?endpoint=https%3A%2F%2Fexample.com%2Fsetup&owner=you@example.com
+```
+
+That endpoint should accept a JSON POST body and store or forward the setup
+request. Do not put API keys in the browser page. Keep keys in the endpoint,
+GitHub Actions secrets, or a private server.
+
+## Why This Is Not Fully Automatic Yet
+
+GitHub Pages is static hosting. It can display a form, generate JSON, and open
+an email draft, but it cannot securely save subscribers or send email by itself.
+Those tasks require a private backend or a scheduled job with secrets.
