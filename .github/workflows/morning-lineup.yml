@@ -41,10 +41,15 @@ jobs:
         working-directory: morning-lineup
         env:
           MORNING_LINEUP_SUBSCRIBERS_JSON: ${{ secrets.MORNING_LINEUP_SUBSCRIBERS_JSON }}
+          MORNING_LINEUP_EMAIL_PROVIDER: ${{ secrets.MORNING_LINEUP_EMAIL_PROVIDER || vars.MORNING_LINEUP_EMAIL_PROVIDER }}
           MORNING_LINEUP_FROM_EMAIL: ${{ secrets.MORNING_LINEUP_FROM_EMAIL }}
           MORNING_LINEUP_OWNER_EMAIL: ${{ secrets.MORNING_LINEUP_OWNER_EMAIL || vars.MORNING_LINEUP_OWNER_EMAIL }}
           MORNING_LINEUP_MANAGE_URL: ${{ vars.MORNING_LINEUP_MANAGE_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || vars.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || vars.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
           if [ -z "$MORNING_LINEUP_SUBSCRIBERS_JSON" ]; then
             echo "No Morning Lineup subscribers configured; skipping send."
@@ -54,8 +59,13 @@ jobs:
             echo "Missing MORNING_LINEUP_FROM_EMAIL secret."
             exit 1
           fi
-          if [ -z "$RESEND_API_KEY" ]; then
-            echo "Missing RESEND_API_KEY secret."
+          if [ "$MORNING_LINEUP_EMAIL_PROVIDER" = "smtp" ]; then
+            if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USERNAME" ] || [ -z "$SMTP_PASSWORD" ]; then
+              echo "Missing SMTP_HOST, SMTP_USERNAME, or SMTP_PASSWORD for SMTP sending."
+              exit 1
+            fi
+          elif [ -z "$RESEND_API_KEY" ]; then
+            echo "Missing RESEND_API_KEY secret. Set it, or set MORNING_LINEUP_EMAIL_PROVIDER=smtp with SMTP secrets."
             exit 1
           fi
           python3 -m morning_lineup.daily --send

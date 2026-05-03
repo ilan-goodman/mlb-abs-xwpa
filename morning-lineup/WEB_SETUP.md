@@ -48,12 +48,16 @@ GitHub Actions secrets, or a private server.
 The active GitHub Actions workflow reads these values:
 
 - `RESEND_API_KEY`: Resend API key.
+- `MORNING_LINEUP_EMAIL_PROVIDER`: optional. Set to `smtp` to use Gmail or
+  another SMTP mailbox instead of Resend.
 - `MORNING_LINEUP_FROM_EMAIL`: verified sender, such as
   `Morning Lineup <news@example.com>`.
 - `MORNING_LINEUP_SUBSCRIBERS_JSON`: full subscriber JSON array from the setup
   page.
 - `MORNING_LINEUP_OWNER_EMAIL`: optional email address for preference-change
   requests.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`: required only for
+  SMTP/Gmail sending.
 
 The workflow runs at 5 AM Pacific using two UTC cron entries plus a Pacific-time
 gate for daylight saving time.

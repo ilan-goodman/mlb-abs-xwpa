@@ -74,11 +74,24 @@ does not store emails or contain email-provider API keys.
 
 ## Sending Email
 
-Resend is the easiest hosted option:
+Resend is the easiest hosted option if you own a domain:
 
 ```bash
 export MORNING_LINEUP_FROM_EMAIL="Morning Lineup <onboarding@resend.dev>"
 export RESEND_API_KEY="re_..."
+python3 -m morning_lineup.daily --send
+```
+
+If you do not own a domain, use a real mailbox through SMTP instead. For
+example, a dedicated Gmail account can send family packets with an app password:
+
+```bash
+export MORNING_LINEUP_EMAIL_PROVIDER="smtp"
+export MORNING_LINEUP_FROM_EMAIL="Morning Lineup <your.address@gmail.com>"
+export SMTP_HOST="smtp.gmail.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="your.address@gmail.com"
+export SMTP_PASSWORD="your-google-app-password"
 python3 -m morning_lineup.daily --send
 ```
 
@@ -105,11 +118,14 @@ time changes.
 Add these repository secrets:
 
 - `MORNING_LINEUP_SUBSCRIBERS_JSON`: the full JSON array of subscribers.
+- `MORNING_LINEUP_EMAIL_PROVIDER`: optional. Use `smtp` for Gmail or another
+  mailbox provider; omit or use `auto` for Resend.
 - `MORNING_LINEUP_FROM_EMAIL`: sender address, for example
   `Morning Lineup <news@yourdomain.com>`.
 - `RESEND_API_KEY`: Resend API key.
 - `MORNING_LINEUP_OWNER_EMAIL`: optional address for preference or unsubscribe
   requests.
+- For SMTP/Gmail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`.
 
 The daily email includes links to manage preferences or stop emails. With the
 current static setup page, those links generate a request for you to apply. A

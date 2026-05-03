@@ -47,6 +47,10 @@ def send_or_save(
     send: bool = False,
 ) -> Path | None:
     sender = os.environ.get("MORNING_LINEUP_FROM_EMAIL", "Morning Lineup <baseball@example.com>")
+    provider = os.environ.get("MORNING_LINEUP_EMAIL_PROVIDER", "auto").strip().lower()
+    if send and provider == "smtp":
+        send_smtp(build_message(sender, subscriber, team, subject, text_body, html_body, articles))
+        return None
     if os.environ.get("RESEND_API_KEY") and send:
         send_resend(sender, subscriber, subject, text_body, html_body, articles)
         return None
