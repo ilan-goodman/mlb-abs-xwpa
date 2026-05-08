@@ -112,8 +112,8 @@ Copy `morning-lineup/github-workflows/morning-lineup.yml` to
 `.github/workflows/morning-lineup.yml` when this app lives in its own repo.
 
 The workflow uses two UTC schedules, `12:00` and `13:00`, plus a Pacific-time
-gate so the job only actually sends at 5 AM Pacific across daylight saving
-time changes.
+DST-offset gate so the job only actually sends at 5 AM Pacific across daylight
+saving time changes, even if GitHub starts the job late.
 
 Add these repository secrets:
 

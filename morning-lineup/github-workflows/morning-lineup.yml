@@ -16,11 +16,17 @@ jobs:
       - name: Check Pacific schedule window
         id: schedule_gate
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=America/Los_Angeles date +%H)" != "05" ]; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          should_run=true
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            should_run=false
+            pacific_offset="$(TZ=America/Los_Angeles date +%z)"
+            if [ "${{ github.event.schedule }}" = "0 12 * * *" ] && [ "$pacific_offset" = "-0700" ]; then
+              should_run=true
+            elif [ "${{ github.event.schedule }}" = "0 13 * * *" ] && [ "$pacific_offset" = "-0800" ]; then
+              should_run=true
+            fi
           fi
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
         if: steps.schedule_gate.outputs.should_run == 'true'

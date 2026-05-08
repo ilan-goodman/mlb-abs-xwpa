@@ -59,8 +59,9 @@ The active GitHub Actions workflow reads these values:
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`: required only for
   SMTP/Gmail sending.
 
-The workflow runs at 5 AM Pacific using two UTC cron entries plus a Pacific-time
-gate for daylight saving time.
+The workflow runs at 5 AM Pacific using two UTC cron entries plus a DST-offset
+gate. It checks the scheduled cron slot, not the delayed GitHub runner start
+time.
 
 ## Why This Is Not Fully Automatic Yet
 

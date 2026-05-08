@@ -27,11 +27,17 @@ jobs:
       - name: Check Central schedule window
         id: schedule_gate
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=America/Chicago date +%H)" != "06" ]; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          should_run=true
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            should_run=false
+            central_offset="$(TZ=America/Chicago date +%z)"
+            if [ "${{ github.event.schedule }}" = "0 11 * * *" ] && [ "$central_offset" = "-0500" ]; then
+              should_run=true
+            elif [ "${{ github.event.schedule }}" = "0 12 * * *" ] && [ "$central_offset" = "-0600" ]; then
+              should_run=true
+            fi
           fi
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
         if: steps.schedule_gate.outputs.should_run == 'true'
