@@ -1322,6 +1322,9 @@ def render_article_page(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The ABS Challenge Leaderboard We Actually Wanted</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,760&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --paper: #f4efe4;
@@ -1854,23 +1857,554 @@ def render_article_page(
       .board-tools { align-items: stretch; }
       .board-actions { justify-content: flex-start; }
     }
+
+    /* Ilan Goodman site system */
+    :root {
+      --paper: #f8f3ea;
+      --paper-deep: #efe7d8;
+      --paper-2: #efe7d8;
+      --ink: #11140f;
+      --ink-2: #22271f;
+      --muted: #677063;
+      --muted-dark: #c3ceb9;
+      --line: rgba(17, 20, 15, 0.14);
+      --line-dark: rgba(255, 255, 255, 0.18);
+      --panel: #fffdf8;
+      --white: #fffdf8;
+      --citron: #dfff56;
+      --aqua: #00b8a9;
+      --blue: #3d7df2;
+      --coral: #ff6b5f;
+      --magenta: #e449a2;
+      --violet: #8067f2;
+      --green: #008c7f;
+      --red: #ff6b5f;
+      --gold: #dfff56;
+      --navy: #22271f;
+      --prism: linear-gradient(90deg, #ff5a5f 0%, #ffb000 16%, #d7f64a 33%, #00b8a9 50%, #3d7df2 67%, #8067f2 83%, #e449a2 100%);
+      --shadow: 0 24px 70px rgba(17, 20, 15, 0.16);
+    }
+    body {
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      pointer-events: none;
+      content: "";
+      background:
+        linear-gradient(rgba(17, 20, 15, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(17, 20, 15, 0.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+    }
+    body::after {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      content: "";
+      opacity: 0.32;
+      background-image: radial-gradient(rgba(17, 20, 15, 0.14) 0.7px, transparent 0.7px);
+      background-size: 4px 4px;
+      mix-blend-mode: multiply;
+    }
+    a { color: var(--blue); }
+    ::selection { background: var(--citron); color: var(--ink); }
+    .shell {
+      max-width: none;
+      padding: 0 24px 56px;
+    }
+    .masthead {
+      min-height: 94vh;
+      margin: 0 -24px;
+      padding: 112px 24px 32px;
+      border: 0;
+      background: var(--ink);
+      color: var(--white);
+      isolation: isolate;
+    }
+    .masthead::before {
+      position: absolute;
+      inset: auto 0 0;
+      height: 46%;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+      background:
+        linear-gradient(180deg, rgba(17, 20, 15, 0) 0%, rgba(17, 20, 15, 0.84) 78%),
+        linear-gradient(90deg, rgba(255, 90, 95, 0.14), rgba(0, 184, 169, 0.12), rgba(128, 103, 242, 0.14));
+    }
+    .masthead::after {
+      inset: 18% -9% auto auto;
+      width: min(680px, 54vw);
+      aspect-ratio: 1.28;
+      z-index: 0;
+      border: 1px solid rgba(255, 253, 248, 0.18);
+      border-radius: 8px;
+      opacity: 0.78;
+      background:
+        linear-gradient(90deg, transparent 46%, rgba(223, 255, 86, 0.44) 47% 53%, transparent 54%),
+        linear-gradient(0deg, transparent 46%, rgba(255, 253, 248, 0.18) 47% 53%, transparent 54%),
+        repeating-linear-gradient(90deg, rgba(255, 253, 248, 0.08) 0 1px, transparent 1px 34px),
+        rgba(255, 253, 248, 0.04);
+      transform: rotate(-7deg);
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.22);
+    }
+    .topbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      z-index: 50;
+      width: min(1120px, calc(100% - 32px));
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
+      gap: 18px;
+      padding: 8px 8px 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(17, 20, 15, 0.68);
+      color: var(--white);
+      box-shadow: 0 20px 55px rgba(17, 20, 15, 0.20);
+      backdrop-filter: blur(18px);
+      transform: translateX(-50%);
+      font: 800 0.88rem/1.2 "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .brand-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--white);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .brand-glyph {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--prism);
+      color: #10120f;
+      font-size: 0.74rem;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+    }
+    .section-label {
+      color: rgba(255, 253, 248, 0.68);
+      font-size: 0.74rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .topbar nav {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      min-width: 0;
+    }
+    .topbar a {
+      border-bottom: 0;
+      color: rgba(255, 253, 248, 0.84);
+      text-decoration: none;
+    }
+    .topbar nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 0.86rem;
+      transition: background 180ms ease, color 180ms ease;
+    }
+    .topbar a:hover,
+    .topbar a:focus-visible {
+      color: var(--white);
+      outline: none;
+    }
+    .topbar nav a:hover,
+    .topbar nav a:focus-visible {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .nav-short { display: none; }
+    .hero-copy {
+      align-self: end;
+      width: min(1120px, 100%);
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 72px 0 42px;
+      color: var(--white);
+    }
+    .rubric {
+      color: var(--citron);
+      font: 800 0.78rem/1 "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .rubric::before {
+      height: 3px;
+      border-radius: 999px;
+      background: var(--prism);
+    }
+    h1,
+    .story-copy h2,
+    .scorecard h2,
+    .viz h2,
+    .case-title,
+    .swing-card h3,
+    .methodology h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    h1 {
+      color: var(--white);
+      font-size: clamp(4.1rem, 10vw, 8.6rem);
+      line-height: 0.86;
+    }
+    .mobile-title { display: none; }
+    .dek {
+      max-width: 780px;
+      color: rgba(255, 253, 248, 0.82);
+      font: 500 clamp(1.25rem, 2.3vw, 1.85rem)/1.26 "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .byline {
+      color: var(--muted-dark);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      flex-wrap: wrap;
+    }
+    .stamp {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.11);
+      color: var(--white);
+      transform: none;
+    }
+    .hero-strip {
+      width: min(1120px, 100%);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0 auto 22px;
+      border: 0;
+      background: transparent;
+    }
+    .hero-stat {
+      min-height: 116px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.08);
+      color: var(--white);
+      backdrop-filter: blur(14px);
+    }
+    .hero-stat span {
+      color: rgba(255, 253, 248, 0.68);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .hero-stat strong {
+      color: var(--white);
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 650;
+    }
+    .ad-banner {
+      width: min(970px, 100%);
+      border-color: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 253, 248, 0.08);
+      color: rgba(255, 253, 248, 0.62);
+    }
+    .story-grid,
+    .viz,
+    .methodology,
+    footer {
+      width: min(1120px, 100%);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .story-grid { margin-top: 58px; }
+    .story-copy {
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 18px;
+      line-height: 1.72;
+    }
+    .shell > .story-copy {
+      width: min(820px, 100%);
+      margin: 58px auto 0;
+    }
+    .story-grid .story-copy {
+      width: auto;
+      margin: 0;
+    }
+    .story-copy h2 {
+      margin-top: 52px;
+      color: var(--ink);
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      line-height: 0.98;
+    }
+    .pull {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background:
+        linear-gradient(var(--white), var(--white)) padding-box,
+        var(--prism) border-box;
+      box-shadow: var(--shadow);
+      color: var(--ink);
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 650;
+      padding: 22px;
+    }
+    .sidebar { top: 88px; }
+    .scorecard,
+    .viz,
+    .note-box,
+    .case-file,
+    .player-row,
+    .swing-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.94);
+      box-shadow: var(--shadow);
+    }
+    .scorecard {
+      position: relative;
+      overflow: hidden;
+      border-top: 0;
+    }
+    .scorecard::before,
+    .viz::before {
+      display: block;
+      width: calc(100% + 40px);
+      height: 4px;
+      margin: -18px -20px 16px;
+      content: "";
+      background: var(--prism);
+    }
+    .viz::before { margin-top: -20px; }
+    .scorecard-row {
+      border-top-color: rgba(17, 20, 15, 0.12);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .viz {
+      position: relative;
+      padding: 20px;
+    }
+    .viz-kicker {
+      color: var(--coral);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    button,
+    select,
+    input {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--white);
+      color: var(--ink);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+    button:hover,
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      border-color: rgba(17, 20, 15, 0.36);
+      box-shadow: 0 0 0 3px rgba(0, 184, 169, 0.18);
+      outline: none;
+    }
+    button.active {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--white);
+    }
+    .toggle-row {
+      border-color: var(--line);
+      border-radius: 6px;
+      background: rgba(255, 253, 248, 0.78);
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .include-toggle.is-on {
+      border-color: var(--aqua);
+      background: rgba(0, 184, 169, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(0, 184, 169, 0.20);
+    }
+    .include-toggle.is-on .toggle-state,
+    .toggle-row input:checked {
+      border-color: var(--aqua);
+      background: var(--aqua);
+      color: var(--ink);
+    }
+    .leaderboard-count,
+    .empty-state,
+    .suggestions,
+    .player-row,
+    .swing-meta,
+    .swing-card p,
+    .case-stat span,
+    .case-stat strong,
+    .methodology,
+    footer {
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .suggestions {
+      border-color: rgba(17, 20, 15, 0.20);
+      border-radius: 6px;
+      background: var(--white);
+      box-shadow: 0 18px 42px rgba(17, 20, 15, 0.20);
+    }
+    .suggestion { border-bottom-color: rgba(17, 20, 15, 0.10); }
+    .suggestion:hover,
+    .suggestion:focus {
+      background: rgba(0, 184, 169, 0.12);
+    }
+    .track {
+      height: 18px;
+      border-color: rgba(17, 20, 15, 0.10);
+      border-radius: 999px;
+      background: rgba(17, 20, 15, 0.07);
+    }
+    .bar-fill {
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--aqua), var(--blue), var(--violet));
+    }
+    .bar-fill.neg {
+      background: linear-gradient(90deg, var(--coral), var(--magenta));
+    }
+    .scatter-wrap {
+      border-color: rgba(17, 20, 15, 0.12);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(17, 20, 15, 0.04) 1px, transparent 1px) 0 0 / 42px 42px,
+        linear-gradient(0deg, rgba(17, 20, 15, 0.04) 1px, transparent 1px) 0 0 / 42px 42px,
+        rgba(255, 253, 248, 0.62);
+    }
+    .tooltip {
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--white);
+    }
+    .case-file {
+      background: var(--paper-deep);
+    }
+    .case-stat {
+      border-color: rgba(17, 20, 15, 0.12);
+      border-radius: 6px;
+      background: rgba(255, 253, 248, 0.72);
+    }
+    .player-row,
+    .swing-card {
+      background: rgba(255, 253, 248, 0.78);
+      box-shadow: none;
+    }
+    .methodology {
+      border-top: 0;
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.74);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      padding: 22px;
+    }
+    .methodology h2 { color: var(--ink); }
+    footer {
+      border-top-color: var(--line);
+      color: var(--muted);
+    }
+    .codex-note { margin-top: 8px; }
+
+    @media (max-width: 1040px) {
+      .topbar { grid-template-columns: auto 1fr; }
+      .section-label { display: none; }
+    }
+    @media (max-width: 920px) {
+      .hero-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .masthead::after {
+        inset: 22% -28% auto auto;
+        width: 76vw;
+      }
+      .topbar nav {
+        justify-content: flex-end;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+    }
+    @media (max-width: 700px) {
+      .shell { padding-inline: 16px; }
+      .masthead {
+        margin-inline: -16px;
+        padding: 102px 16px 28px;
+      }
+      .topbar {
+        top: 12px;
+        width: calc(100% - 24px);
+        grid-template-columns: auto minmax(0, 1fr);
+        min-height: 54px;
+        gap: 10px;
+        padding: 7px;
+      }
+      .brand-link span:not(.brand-glyph) { display: none; }
+      .nav-full { display: none; }
+      .nav-short { display: inline; }
+      .topbar nav {
+        justify-content: flex-start;
+        overflow-x: visible;
+      }
+      .topbar nav a {
+        min-height: 38px;
+        padding: 8px 6px;
+        font-size: 0.72rem;
+      }
+      .hero-copy {
+        width: 100%;
+        max-width: 22rem;
+        margin-left: 0;
+        margin-right: 0;
+        padding-top: 42px;
+      }
+      .desktop-title { display: none; }
+      .mobile-title { display: block; }
+      .mobile-title span { display: block; }
+      h1 {
+        width: 100%;
+        max-width: 22rem;
+        font-size: clamp(2.35rem, 10.5vw, 2.8rem);
+        line-height: 0.96;
+      }
+      .dek {
+        width: 100%;
+        max-width: 22rem;
+        font-size: 1rem;
+      }
+      .hero-strip { grid-template-columns: 1fr; }
+      .hero-stat { min-height: 92px; }
+      .bar-row { grid-template-columns: minmax(88px, 0.92fr) minmax(0, 1fr) 64px; }
+      .viz { padding: 16px; }
+      .viz::before { width: calc(100% + 32px); margin: -16px -16px 14px; }
+      .scorecard::before { width: calc(100% + 36px); }
+      .methodology { padding: 18px; }
+    }
   </style>
 </head>
 <body>
   <div class="shell">
     <header class="masthead">
       <div class="topbar">
-        <div>ABS Challenge Lab / __YEAR__</div>
+        <a class="brand-link" href="https://ilangoodman.dev/" aria-label="Ilan Goodman home">
+          <span class="brand-glyph" aria-hidden="true">IG</span>
+          <span>Ilan Goodman</span>
+        </a>
+        <div class="section-label">ABS Challenge Lab / __YEAR__</div>
         <nav>
-          <a href="dashboard.html">Data Dashboard</a>
-          <a href="data/processed/team_abs_xwpa.csv">Team CSV</a>
-          <a href="data/processed/missed_challenge_opportunities.csv">Missed CSV</a>
-          <a href="data/processed/player_failed_challenges_against.csv">Failed Against CSV</a>
+          <a href="dashboard.html" aria-label="Data Dashboard"><span class="nav-full">Data Dashboard</span><span class="nav-short">Data</span></a>
+          <a href="data/processed/team_abs_xwpa.csv" aria-label="Team CSV"><span class="nav-full">Team CSV</span><span class="nav-short">Team</span></a>
+          <a href="data/processed/missed_challenge_opportunities.csv" aria-label="Missed CSV"><span class="nav-full">Missed CSV</span><span class="nav-short">Missed</span></a>
+          <a href="data/processed/player_failed_challenges_against.csv" aria-label="Failed Against CSV"><span class="nav-full">Failed Against CSV</span><span class="nav-short">Failed</span></a>
         </nav>
       </div>
       <div class="hero-copy">
         <div class="rubric">Win Probability, Not Just Accuracy</div>
-        <h1>The ABS Challenge Leaderboard We Actually Wanted</h1>
+        <h1><span class="desktop-title">The ABS Challenge Leaderboard We Actually Wanted</span><span class="mobile-title" aria-hidden="true"><span>The ABS</span><span>Challenge</span><span>Leaderboard</span><span>We Actually</span><span>Wanted</span></span></h1>
         <p class="dek">Overturn rate tells you who was right. xWPA asks whether being right mattered.</p>
         <div class="byline">
           <span class="stamp">Updated __UPDATED__</span>
@@ -2113,8 +2647,8 @@ def render_article_page(
     </section>
 
     <footer>
-      Built as a static page from the same daily pipeline that writes the CSVs. The interactive graphics use embedded data, so the page can be published as ordinary static HTML.
-      <div class="codex-note">Generated with Codex; because of this, it may contain errors.</div>
+      Designed by Ilan Goodman. Built as a static page from the same daily pipeline that writes the CSVs; the interactive graphics use embedded data and can be published as ordinary static HTML.
+      <div class="codex-note">Built with help from Codex. Data and methods may contain errors.</div>
     </footer>
   </div>
 
@@ -3217,8 +3751,6 @@ def main() -> int:
     ads_txt = SITE / "ads.txt"
     if publisher_id:
         ads_txt.write_text(f"google.com, {publisher_id}, DIRECT, f08c47fec0942fa0\n", encoding="utf-8")
-    elif ads_txt.exists():
-        ads_txt.unlink()
     mirror_processed_data_to_site()
 
     print(json.dumps(summary, indent=2), file=sys.stderr)
