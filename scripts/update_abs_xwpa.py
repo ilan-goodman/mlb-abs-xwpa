@@ -1581,6 +1581,17 @@ def render_article_page(
     }
     .typeahead { position: relative; flex: 1 1 280px; max-width: 420px; }
     .typeahead input { width: 100%; }
+    .board-filters {
+      display: flex;
+      gap: 10px;
+      flex: 1 1 560px;
+      max-width: 720px;
+      flex-wrap: wrap;
+    }
+    .board-filters .typeahead {
+      flex: 1 1 230px;
+      max-width: none;
+    }
     .suggestions {
       display: none;
       position: absolute;
@@ -1620,12 +1631,57 @@ def render_article_page(
       min-height: 38px;
       font: 800 11px/1.1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       text-transform: uppercase;
+      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .include-toggle.is-on {
+      border-color: var(--green);
+      background: rgba(23,106,77,.13);
+      box-shadow: inset 0 0 0 1px rgba(23,106,77,.22);
     }
     .toggle-row input {
       min-width: 0;
-      width: 16px;
-      height: 16px;
-      accent-color: var(--green);
+      width: 34px;
+      height: 18px;
+      margin: 0;
+      appearance: none;
+      border: 1px solid rgba(17,24,39,.48);
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      position: relative;
+      cursor: pointer;
+      transition: background .16s ease, border-color .16s ease;
+    }
+    .toggle-row input::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--muted);
+      transition: transform .16s ease, background .16s ease;
+    }
+    .toggle-row input:checked {
+      border-color: var(--green);
+      background: var(--green);
+    }
+    .toggle-row input:checked::after {
+      transform: translateX(16px);
+      background: white;
+    }
+    .toggle-copy { display: inline-flex; align-items: center; gap: 6px; }
+    .toggle-state {
+      min-width: 30px;
+      padding: 3px 5px;
+      border: 1px solid rgba(17,24,39,.25);
+      background: rgba(255,255,255,.55);
+      text-align: center;
+    }
+    .include-toggle.is-on .toggle-state {
+      border-color: var(--green);
+      background: var(--green);
+      color: white;
     }
     .leaderboard-count {
       color: var(--muted);
@@ -1882,7 +1938,10 @@ def render_article_page(
         </div>
         <div class="board-actions">
           <span class="leaderboard-count" id="teamBoardCount"></span>
-          <label class="toggle-row"><input id="teamIncludeMissed" type="checkbox">Include Missed</label>
+          <label class="toggle-row include-toggle" id="teamIncludeMissedControl">
+            <input id="teamIncludeMissed" type="checkbox">
+            <span class="toggle-copy"><span>Include Missed</span><span class="toggle-state" data-include-missed-state>Off</span></span>
+          </label>
           <button id="teamShowMore">Show 15 More</button>
           <button id="teamShowAll">Show All</button>
           <button id="teamReset">Reset</button>
@@ -1977,13 +2036,22 @@ def render_article_page(
         </div>
       </div>
       <div class="board-tools">
-        <div class="typeahead">
-          <input id="playerBoardSearch" placeholder="Search players" autocomplete="off">
-          <div class="suggestions" id="playerBoardSuggestions"></div>
+        <div class="board-filters">
+          <div class="typeahead">
+            <input id="playerBoardSearch" placeholder="Search players" autocomplete="off">
+            <div class="suggestions" id="playerBoardSuggestions"></div>
+          </div>
+          <div class="typeahead">
+            <input id="playerTeamFilter" placeholder="Filter by team" autocomplete="off">
+            <div class="suggestions" id="playerTeamSuggestions"></div>
+          </div>
         </div>
         <div class="board-actions">
           <span class="leaderboard-count" id="playerBoardCount"></span>
-          <label class="toggle-row"><input id="playerIncludeMissed" type="checkbox">Include Missed</label>
+          <label class="toggle-row include-toggle" id="playerIncludeMissedControl">
+            <input id="playerIncludeMissed" type="checkbox">
+            <span class="toggle-copy"><span>Include Missed</span><span class="toggle-state" data-include-missed-state>Off</span></span>
+          </label>
           <button id="playerShowMore">Show 12 More</button>
           <button id="playerShowAll">Show All</button>
           <button id="playerReset">Reset</button>
@@ -2066,7 +2134,7 @@ def render_article_page(
     const teamByAbbr = new Map(teams.map(row => [row.challenge_team_abbr, row]));
     const boardState = {
       team: { metric: 'total_xwpa', limit: 15, query: '' },
-      player: { mode: 'hitter', limit: 12, query: '' },
+      player: { mode: 'hitter', limit: 12, query: '', teamQuery: '' },
       swing: { side: 'all', limit: 6, query: '' },
       missed: { side: 'all', limit: 6, query: '' },
       includeMissed: false
@@ -2173,11 +2241,21 @@ def render_article_page(
     }
 
     function playerTeam(row, isAgainst = row.role && row.role.includes('_against')) {
-      return isAgainst ? row.team_abbr : row.challenge_team_abbr;
+      return (isAgainst ? row.team_abbr : row.challenge_team_abbr) || row.challenge_team_abbr || row.team_abbr || '';
+    }
+
+    function teamNameForAbbr(abbr) {
+      const team = teamByAbbr.get(abbr);
+      return team ? team.challenge_team_name : abbr;
+    }
+
+    function playerTeamSearchText(row, isAgainst = row.role && row.role.includes('_against')) {
+      const abbr = playerTeam(row, isAgainst);
+      return `${abbr} ${teamNameForAbbr(abbr)}`;
     }
 
     function playerSearchText(row) {
-      return `${row.player_name} ${playerTeam(row)} ${row.role}`;
+      return `${row.player_name} ${playerTeamSearchText(row)} ${row.role}`;
     }
 
     function swingSearchText(row) {
@@ -2356,7 +2434,8 @@ def render_article_page(
         .filter(row => row.role === mode)
         .sort((a, b) => playerMetricValue(b, isAgainst) - playerMetricValue(a, isAgainst))
         .map((row, idx) => ({ ...row, board_rank: idx + 1 }))
-        .filter(row => matchesQuery(playerSearchText(row), boardState.player.query));
+        .filter(row => matchesQuery(playerSearchText(row), boardState.player.query))
+        .filter(row => matchesQuery(playerTeamSearchText(row, isAgainst), boardState.player.teamQuery));
     }
 
     function playerMetricValue(row, isAgainst = false) {
@@ -2370,7 +2449,7 @@ def render_article_page(
       const filtered = playerRowsForMode(mode);
       const rows = limitedRows(filtered, boardState.player.limit);
       setBoardCount('#playerBoardCount', rows.length, filtered.length, boardState.player.limit);
-      updateLimitButtons('player', rows.length, filtered.length, boardState.player.query, boardState.player.limit, 12);
+      updateLimitButtons('player', rows.length, filtered.length, boardState.player.query || boardState.player.teamQuery, boardState.player.limit, 12);
       if (!rows.length) {
         document.querySelector('#playerBoard').innerHTML = '<div class="empty-state">No players match that search.</div>';
         return;
@@ -2461,6 +2540,23 @@ def render_article_page(
       }));
     }
 
+    function playerTeamSuggestionOptions() {
+      const mode = boardState.player.mode;
+      const isAgainst = mode.includes('_against');
+      const rows = (isAgainst ? failedAgainst : players).filter(row => row.role === mode);
+      return uniqueBy(rows.map(row => {
+        const abbr = playerTeam(row, isAgainst);
+        const name = teamNameForAbbr(abbr);
+        return {
+          label: name || abbr,
+          value: name || abbr,
+          detail: abbr,
+          search: `${name} ${abbr}`
+        };
+      }).filter(option => option.detail), option => option.detail)
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+
     function swingSuggestionOptions() {
       const teamOptions = uniqueBy(challenges.map(row => {
         const team = teamByAbbr.get(row.challenge_team_abbr);
@@ -2510,6 +2606,11 @@ def render_article_page(
       boardState.player.limit = 12;
       renderPlayerBoard();
     });
+    setupTypeahead('#playerTeamFilter', '#playerTeamSuggestions', playerTeamSuggestionOptions, value => {
+      boardState.player.teamQuery = value;
+      boardState.player.limit = 12;
+      renderPlayerBoard();
+    });
     setupTypeahead('#swingSearch', '#swingSuggestions', swingSuggestionOptions, value => {
       boardState.swing.query = value;
       boardState.swing.limit = 6;
@@ -2546,8 +2647,10 @@ def render_article_page(
     });
     document.querySelector('#playerReset').addEventListener('click', () => {
       boardState.player.query = '';
+      boardState.player.teamQuery = '';
       boardState.player.limit = 12;
       document.querySelector('#playerBoardSearch').value = '';
+      document.querySelector('#playerTeamFilter').value = '';
       renderPlayerBoard();
     });
 
@@ -2583,10 +2686,19 @@ def render_article_page(
 
     function setIncludeMissed(value) {
       boardState.includeMissed = value;
-      document.querySelector('#teamIncludeMissed').checked = value;
-      document.querySelector('#playerIncludeMissed').checked = value;
+      updateIncludeMissedControls();
       renderTeamBars();
       renderPlayerBoard();
+    }
+    function updateIncludeMissedControls() {
+      document.querySelector('#teamIncludeMissed').checked = boardState.includeMissed;
+      document.querySelector('#playerIncludeMissed').checked = boardState.includeMissed;
+      document.querySelectorAll('.include-toggle').forEach(label => {
+        label.classList.toggle('is-on', boardState.includeMissed);
+      });
+      document.querySelectorAll('[data-include-missed-state]').forEach(node => {
+        node.textContent = boardState.includeMissed ? 'On' : 'Off';
+      });
     }
     document.querySelector('#teamIncludeMissed').addEventListener('change', event => setIncludeMissed(event.target.checked));
     document.querySelector('#playerIncludeMissed').addEventListener('change', event => setIncludeMissed(event.target.checked));
@@ -2603,8 +2715,10 @@ def render_article_page(
         document.querySelectorAll('[data-player-mode]').forEach(item => item.classList.remove('active'));
         button.classList.add('active');
         boardState.player.query = '';
+        boardState.player.teamQuery = '';
         boardState.player.limit = 12;
         document.querySelector('#playerBoardSearch').value = '';
+        document.querySelector('#playerTeamFilter').value = '';
         renderPlayerBoard(button.dataset.playerMode);
       });
     });
@@ -2626,6 +2740,7 @@ def render_article_page(
     });
 
     renderSideTopTeams();
+    updateIncludeMissedControls();
     renderTeamBars();
     renderScatter();
     setupTeamSelect();
