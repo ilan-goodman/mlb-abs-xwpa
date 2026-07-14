@@ -1089,8 +1089,8 @@
         <h1><span class="desktop-title">The ABS Challenge Leaderboard We Actually Wanted</span><span class="mobile-title" aria-hidden="true"><span>The ABS</span><span>Challenge</span><span>Leaderboard</span><span>We Actually</span><span>Wanted</span></span></h1>
         <p class="dek">Overturn rate tells you who was right. xWPA asks whether being right mattered.</p>
         <div class="byline">
-          <span class="stamp">Updated 2026-07-13</span>
-          <span>Regular season ABS challenges through 2026-07-13.</span>
+          <span class="stamp">Updated 2026-07-14</span>
+          <span>Regular season ABS challenges through 2026-07-14.</span>
         </div>
       </div>
       <div class="hero-strip">
@@ -1121,7 +1121,7 @@
 
         <p>So this version scores every challenge by expected win probability added. For each pitch, the script reconstructs the inning, half-inning, score, base/out state, count, batting team, and fielding team from MLB Stats API game feeds. It then asks a simple counterfactual question: what was the challenging team's win probability after the original umpire call, and what was it after the ABS-corrected call?</p>
 
-        <div class="pull">Through 2026-07-13, the top team is Colorado Rockies (COL) at +1.116 direct challenge wins, or +111.6 WPA points.</div>
+        <div class="pull">Through 2026-07-14, the top team is Colorado Rockies (COL) at +1.116 direct challenge wins, or +111.6 WPA points.</div>
 
         <p>The early leaderboard has a pleasingly weird shape. The first-place club is Colorado Rockies (COL), but the story is not just volume. The leader's challenges have produced +1.3 points per attempt, and the risk-adjusted leader is Colorado Rockies (COL) once the failed-challenge inventory proxy is included. The league as a whole has banked +18.839 direct wins of call-correction value before accounting for the cost of unsuccessful challenges.</p>
 
@@ -1186,7 +1186,7 @@
       <h2>The Challenge That Never Came</h2>
       <p>There is now a third bucket: missed opportunities. These are not observed decisions, so they should be handled with more humility. The model scans every called ball and called strike in the MLB game feed, compares the pitch location to an inferred ABS rectangle, estimates the chance that a challenge would have flipped the call from the pitch's distance beyond the edge, then weighs that against the game's win-probability leverage and the team's remaining challenge inventory.</p>
 
-      <p>Through 2026-07-13, the model finds 4,852 positive expected-value pitches that were not challenged, worth +4199.9 expected WPA points left on the table. The biggest is this one: 2026-05-31: Tim Herrin (CLE) passed on a Top 7, 3-2 ball with 1B2B3B; the model had it 1.2 inches over the inferred ABS edge and worth +18.9 expected points if challenged to strike.</p>
+      <p>Through 2026-07-14, the model finds 4,852 positive expected-value pitches that were not challenged, worth +4199.9 expected WPA points left on the table. The biggest is this one: 2026-05-31: Tim Herrin (CLE) passed on a Top 7, 3-2 ball with 1B2B3B; the model had it 1.2 inches over the inferred ABS edge and worth +18.9 expected points if challenged to strike.</p>
     </article>
 
     <section class="viz">
@@ -1320,7 +1320,7 @@
         <ul>
           <li>Challenge attempts come from Baseball Savant's ABS leaderboard and challenge drawer service.</li>
           <li>Each pitch is joined to MLB Stats API live game feeds by game and pitch id.</li>
-          <li>The win-probability model is trained from completed 2026 regular-season game feeds through 2026-07-13.</li>
+          <li>The win-probability model is trained from completed 2026 regular-season game feeds through 2026-07-14.</li>
           <li>For each challenge, the model evaluates the original call and the ABS-corrected call from the challenging team's perspective.</li>
           <li>Risk-adjusted xWPA adds a failed-challenge inventory proxy based on Savant's lost-challenge run value, converted at 10 runs per win.</li>
           <li>Missed opportunities are inferred from MLB game-feed pitch coordinates, a strike-zone rectangle expanded by a baseball radius, game leverage, modeled overturn probability from distance beyond the edge, and remaining challenge-loss inventory.</li>
