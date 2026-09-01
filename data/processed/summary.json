@@ -1,10 +1,10 @@
 {
   "year": 2026,
-  "end_date": "2026-08-31",
+  "end_date": "2026-09-01",
   "model_scope": "season",
-  "model_games": 2060,
+  "model_games": 2071,
   "challenge_attempts": 1928,
-  "missed_challenge_opportunities": 7141,
+  "missed_challenge_opportunities": 7210,
   "team_rows": 30,
   "player_rows": 888,
   "failed_against_rows": 442
